@@ -1,0 +1,217 @@
+// Prisma schema for BarberBook — direct translation of docs/# ERD BarberBook.txt
+// Field names intentionally mirror the ERD (snake_case) for 1:1 traceability.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  customer
+  administrator
+}
+
+enum AttendeeType {
+  self
+  child
+  other
+}
+
+enum AppointmentStatus {
+  scheduled
+  cancelled
+}
+
+enum CancellationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum NotificationType {
+  appointment_reminder
+  appointment_changed
+  cancellation_decision
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+model User {
+  id             String   @id @default(cuid())
+  full_name      String
+  phone_number   String   @unique
+  password_hash  String
+  role           UserRole @default(customer)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  password_reset_codes         PasswordResetCode[]
+  appointments_booked          Appointment[]         @relation("AppointmentBookedBy")
+  cancellation_requests_made   CancellationRequest[]  @relation("CancellationRequestedBy")
+  cancellation_requests_review CancellationRequest[]  @relation("CancellationReviewedBy")
+  notifications                Notification[]
+  announcements_published      Announcement[]
+
+  @@map("users")
+}
+
+model PasswordResetCode {
+  id           String    @id @default(cuid())
+  user_id      String
+  code         String
+  expires_at   DateTime
+  verified_at  DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("password_reset_codes")
+}
+
+model Service {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  duration_minutes  Int
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+model WorkDay {
+  id          String   @id @default(cuid())
+  work_date   DateTime @db.Date
+  starts_at   DateTime
+  ends_at     DateTime
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  breaks        WorkBreak[]
+  blocked_times BlockedTime[]
+  appointments  Appointment[]
+
+  @@unique([work_date])
+  @@map("work_days")
+}
+
+model WorkBreak {
+  id           String   @id @default(cuid())
+  work_day_id  String
+  starts_at    DateTime
+  ends_at      DateTime
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  work_day WorkDay @relation(fields: [work_day_id], references: [id], onDelete: Cascade)
+
+  @@index([work_day_id])
+  @@map("work_breaks")
+}
+
+model BlockedTime {
+  id           String   @id @default(cuid())
+  work_day_id  String
+  starts_at    DateTime
+  ends_at      DateTime
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  work_day WorkDay @relation(fields: [work_day_id], references: [id], onDelete: Cascade)
+
+  @@index([work_day_id])
+  @@map("blocked_times")
+}
+
+model Appointment {
+  id                  String            @id @default(cuid())
+  work_day_id         String
+  service_id          String
+  booked_by_user_id   String?
+  customer_name       String
+  attendee_name       String
+  attendee_type       AttendeeType
+  starts_at           DateTime
+  ends_at             DateTime
+  status              AppointmentStatus @default(scheduled)
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+
+  work_day             WorkDay              @relation(fields: [work_day_id], references: [id], onDelete: Cascade)
+  service              Service              @relation(fields: [service_id], references: [id], onDelete: Restrict)
+  booked_by            User?                @relation("AppointmentBookedBy", fields: [booked_by_user_id], references: [id], onDelete: SetNull)
+  cancellation_request CancellationRequest?
+  notifications        Notification[]
+
+  @@index([work_day_id])
+  @@index([service_id])
+  @@index([booked_by_user_id])
+  @@map("appointments")
+}
+
+model CancellationRequest {
+  id                    String              @id @default(cuid())
+  appointment_id        String              @unique
+  requested_by_user_id  String
+  reviewed_by_user_id   String?
+  status                CancellationStatus  @default(pending)
+  requested_at          DateTime            @default(now())
+  reviewed_at           DateTime?
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
+
+  appointment   Appointment    @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  requested_by  User           @relation("CancellationRequestedBy", fields: [requested_by_user_id], references: [id], onDelete: Restrict)
+  reviewed_by   User?          @relation("CancellationReviewedBy", fields: [reviewed_by_user_id], references: [id], onDelete: SetNull)
+  notifications Notification[]
+
+  @@index([requested_by_user_id])
+  @@map("cancellation_requests")
+}
+
+model Notification {
+  id                        String              @id @default(cuid())
+  user_id                   String
+  appointment_id            String?
+  cancellation_request_id   String?
+  type                      NotificationType
+  content                   String
+  status                    NotificationStatus  @default(pending)
+  scheduled_at              DateTime?
+  sent_at                   DateTime?
+  created_at                DateTime            @default(now())
+  updated_at                DateTime            @updatedAt
+
+  user                  User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  appointment           Appointment?          @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  cancellation_request  CancellationRequest?  @relation(fields: [cancellation_request_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([status, scheduled_at])
+  @@map("notifications")
+}
+
+model Announcement {
+  id                     String   @id @default(cuid())
+  published_by_user_id   String
+  title                  String
+  content                String
+  published_at           DateTime @default(now())
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  published_by User @relation(fields: [published_by_user_id], references: [id], onDelete: Restrict)
+
+  @@map("announcements")
+}

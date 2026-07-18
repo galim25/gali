@@ -1,0 +1,20 @@
+{
+  "name": "barberbook",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @barberbook/web dev",
+    "build": "pnpm --filter @barberbook/web build",
+    "worker": "pnpm --filter @barberbook/worker dev",
+    "db:generate": "pnpm --filter @barberbook/db generate",
+    "db:migrate": "pnpm --filter @barberbook/db migrate",
+    "db:studio": "pnpm --filter @barberbook/db studio",
+    "db:seed": "pnpm --filter @barberbook/db seed"
+  },
+  "packageManager": "pnpm@11.15.0",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}
