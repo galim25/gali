@@ -61,6 +61,7 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
   1. `apps/web/src/proxy.ts` — רץ ב-edge *לפני* כל קוד עמוד, על כל נתיב תחת `/admin/:path*` (matcher). זו ההגנה שמונעת גישה ע"י הקלדת URL בלבד, גם אם עמוד ספציפי ישכח לבדוק הרשאה.
   2. `requireAdmin()` (`lib/auth/session.ts`) — נקרא בתוך כל עמוד/`page.tsx` תחת `/admin`.
   כל נתיב/עמוד ניהול חדש (כולל routes דינמיים כמו `/admin/day/[id]`) **חייב** גם להיכלל תחת ה-matcher ב-`proxy.ts` וגם לקרוא ל-`requireAdmin()` בעצמו — אף אחד מהשניים אינו תחליף לשני. (הערה: Next.js 16 החליף את השם `middleware.ts` ב-`proxy.ts` — קובץ בשם `middleware.ts` יגרום להתנגשות ולקריסת השרת אם `proxy.ts` כבר קיים.)
+- **`COOKIE_SECURE`** (`.env`, ראו `.env.example`) — עוקף את ברירת המחדל (`NODE_ENV === "production"`) לדגל ה-`Secure` של עוגיית הסשן. `next start` תמיד מפעיל `NODE_ENV=production`, וללא HTTPS אמיתי עוגיית `Secure` נזרקת בשקט ע"י הדפדפן — כניסה "לא עובדת" בלי שום שגיאה גלויה. יש להשאיר `COOKIE_SECURE=false` כל עוד משרתים HTTP גולמי (כתובת IP:פורט, בלי דומיין+TLS), ולהסיר/להפוך ל-`true` ברגע שיש HTTPS אמיתי.
 
 ## עיצוב (Design System)
 
