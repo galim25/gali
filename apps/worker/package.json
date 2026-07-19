@@ -10,11 +10,10 @@
   "dependencies": {
     "@barberbook/db": "workspace:*",
     "@barberbook/shared": "workspace:*",
-    "node-cron": "^3.0.3"
+    "node-cron": "^4.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
