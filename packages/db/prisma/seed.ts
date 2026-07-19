@@ -11,19 +11,21 @@ async function main() {
     });
   }
 
+  // The barber's display name — change this and re-run `pnpm db:seed` to hand
+  // the system to a different barber (see CLAUDE.md, "שם מנהל המערכת").
+  const ADMIN_FULL_NAME = "יוסי הספר";
   const adminPhone = "0500000000";
-  const existingAdmin = await prisma.user.findUnique({ where: { phone_number: adminPhone } });
-  if (!existingAdmin) {
-    await prisma.user.create({
-      data: {
-        full_name: "מנהל המערכת",
-        phone_number: adminPhone,
-        password_hash: await bcrypt.hash("admin123", 10),
-        role: "administrator",
-      },
-    });
-    console.log(`Seeded admin user: phone=${adminPhone} password=admin123`);
-  }
+  await prisma.user.upsert({
+    where: { phone_number: adminPhone },
+    update: { full_name: ADMIN_FULL_NAME },
+    create: {
+      full_name: ADMIN_FULL_NAME,
+      phone_number: adminPhone,
+      password_hash: await bcrypt.hash("admin123", 10),
+      role: "administrator",
+    },
+  });
+  console.log(`Seeded/updated admin user: phone=${adminPhone}`);
 
   console.log("Seed complete.");
 }

@@ -65,18 +65,15 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
     router.refresh();
   }
 
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded border border-gray-200 p-4">
-      <h2 className="font-medium">קביעת תור ידנית (לקוח ללא חשבון)</h2>
+  const inputClass = "border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2";
 
-      <label className="flex flex-col gap-1 text-sm text-gray-600">
+  return (
+    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
+      <h2 className="text-neon-ice font-medium">קביעת תור ידנית (לקוח ללא חשבון)</h2>
+
+      <label className="flex flex-col gap-1 text-sm text-gray-300">
         שירות
-        <select
-          value={serviceId}
-          onChange={(e) => setServiceId(e.target.value)}
-          className="rounded border border-gray-300 p-2"
-          required
-        >
+        <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={inputClass} required>
           <option value="" disabled>
             בחרו שירות
           </option>
@@ -89,14 +86,9 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
       </label>
 
       {serviceId && (
-        <label className="flex flex-col gap-1 text-sm text-gray-600">
+        <label className="flex flex-col gap-1 text-sm text-gray-300">
           שעה
-          <select
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-            className="rounded border border-gray-300 p-2"
-            required
-          >
+          <select value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={inputClass} required>
             <option value="" disabled>
               {slots.length === 0 ? "אין שעות פנויות ביום זה" : "בחרו שעה"}
             </option>
@@ -113,7 +105,7 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
         placeholder="שם הלקוח"
         value={customerName}
         onChange={(e) => setCustomerName(e.target.value)}
-        className="rounded border border-gray-300 p-2"
+        className={inputClass}
         required
       />
 
@@ -122,17 +114,17 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
           placeholder="שם הילד/ה"
           value={attendeeName}
           onChange={(e) => setAttendeeName(e.target.value)}
-          className="rounded border border-gray-300 p-2"
+          className={inputClass}
           required
         />
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-black p-2 text-white disabled:opacity-50"
+        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
       >
         {pending ? "שומר..." : "קביעת תור"}
       </button>

@@ -8,7 +8,7 @@ export default async function PrintAllPage() {
   const days = await getAllWorkDaysExport();
 
   return (
-    <main dir="rtl" className="mx-auto flex max-w-2xl flex-col gap-4 p-6">
+    <main dir="rtl" className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 bg-white p-6 text-gray-900">
       <div className="flex items-center justify-between print:hidden">
         <h1 className="text-xl font-bold">עותק להדפסה — כל היומן</h1>
         <PrintButton />

@@ -32,19 +32,19 @@ export function DecideRequestButtons({ requestId }: { requestId: string }) {
         <button
           onClick={() => decide("approve")}
           disabled={!!pending}
-          className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50"
+          className="bg-tropical-teal text-prussian-blue rounded px-3 py-1 text-sm font-medium disabled:opacity-50"
         >
           {pending === "approve" ? "מאשר..." : "אישור ביטול"}
         </button>
         <button
           onClick={() => decide("reject")}
           disabled={!!pending}
-          className="rounded border border-gray-400 px-3 py-1 text-sm disabled:opacity-50"
+          className="text-neon-ice rounded border border-gray-500 px-3 py-1 text-sm disabled:opacity-50"
         >
           {pending === "reject" ? "דוחה..." : "דחיית בקשה"}
         </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );
 }

@@ -207,15 +207,19 @@ export async function createWorkDayAction(input: CreateWorkDayInput): Promise<Cr
  * Hard delete (FR-15/US-012) — distinct from cancelAppointmentAction's soft
  * cancel. Cascades via the schema's onDelete: Cascade to remove breaks,
  * blocked times, appointments, and anything tied to those appointments.
- * Any customer with a still-upcoming scheduled appointment on this day gets
- * the same cancellation SMS/Notification as a single cancel, sent before
- * the delete since the appointment row (and thus any FK to it) won't
- * survive. Appointments already in the past never notify — the schema has
- * no separate "completed" status, so a historical day's appointments are
- * still status="scheduled" and would otherwise get a bogus "your
- * appointment was cancelled" text for a haircut that already happened.
+ * When notifyCustomers is true, any customer with a still-upcoming
+ * scheduled appointment on this day gets the same cancellation
+ * SMS/Notification as a single cancel, sent before the delete since the
+ * appointment row (and thus any FK to it) won't survive. Appointments
+ * already in the past never notify regardless — the schema has no separate
+ * "completed" status, so a historical day's appointments are still
+ * status="scheduled" and would otherwise get a bogus "your appointment was
+ * cancelled" text for a haircut that already happened.
  */
-export async function deleteWorkDayAction(work_day_id: string): Promise<CreateWorkDayResult> {
+export async function deleteWorkDayAction(
+  work_day_id: string,
+  notifyCustomers: boolean,
+): Promise<CreateWorkDayResult> {
   if (!(await requireAdminSession())) return { error: "אין הרשאה" };
 
   const workDay = await prisma.workDay.findUnique({
@@ -229,14 +233,16 @@ export async function deleteWorkDayAction(work_day_id: string): Promise<CreateWo
   });
   if (!workDay) return { error: "יום העבודה לא נמצא" };
 
-  for (const a of workDay.appointments) {
-    if (a.booked_by) {
-      await notifyAppointmentCancelled({
-        user_id: a.booked_by.id,
-        phone_number: a.booked_by.phone_number,
-        service_name: a.service.name,
-        starts_at: a.starts_at,
-      });
+  if (notifyCustomers) {
+    for (const a of workDay.appointments) {
+      if (a.booked_by) {
+        await notifyAppointmentCancelled({
+          user_id: a.booked_by.id,
+          phone_number: a.booked_by.phone_number,
+          service_name: a.service.name,
+          starts_at: a.starts_at,
+        });
+      }
     }
   }
 
@@ -247,22 +253,24 @@ export async function deleteWorkDayAction(work_day_id: string): Promise<CreateWo
 }
 
 /** Same as deleteWorkDayAction but wipes every work day in the system — the "מחיקת כל היומן" bulk purge. */
-export async function deleteAllWorkDaysAction(): Promise<CreateWorkDayResult> {
+export async function deleteAllWorkDaysAction(notifyCustomers: boolean): Promise<CreateWorkDayResult> {
   if (!(await requireAdminSession())) return { error: "אין הרשאה" };
 
-  const appointments = await prisma.appointment.findMany({
-    where: { status: "scheduled", starts_at: { gte: new Date() } },
-    include: { service: true, booked_by: true },
-  });
+  if (notifyCustomers) {
+    const appointments = await prisma.appointment.findMany({
+      where: { status: "scheduled", starts_at: { gte: new Date() } },
+      include: { service: true, booked_by: true },
+    });
 
-  for (const a of appointments) {
-    if (a.booked_by) {
-      await notifyAppointmentCancelled({
-        user_id: a.booked_by.id,
-        phone_number: a.booked_by.phone_number,
-        service_name: a.service.name,
-        starts_at: a.starts_at,
-      });
+    for (const a of appointments) {
+      if (a.booked_by) {
+        await notifyAppointmentCancelled({
+          user_id: a.booked_by.id,
+          phone_number: a.booked_by.phone_number,
+          service_name: a.service.name,
+          starts_at: a.starts_at,
+        });
+      }
     }
   }
 

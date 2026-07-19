@@ -51,81 +51,83 @@ export function OpenWorkDayForm() {
     router.refresh();
   }
 
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded border border-gray-200 p-4">
-      <h2 className="font-medium">פתיחת יום עבודה חדש</h2>
+  const inputClass = "border-tropical-teal bg-space-indigo text-neon-ice rounded border p-2";
 
-      <label className="flex flex-col gap-1 text-sm text-gray-600">
+  return (
+    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
+      <h2 className="text-neon-ice font-medium">פתיחת יום עבודה חדש</h2>
+
+      <label className="flex flex-col gap-1 text-sm text-gray-300">
         תאריך
         <input
           type="date"
           value={workDate}
           onChange={(e) => setWorkDate(e.target.value)}
-          className="rounded border border-gray-300 p-2"
+          className={inputClass}
           required
         />
       </label>
 
       <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-600">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-300">
           שעת התחלה
           <input
             type="time"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
-            className="rounded border border-gray-300 p-2"
+            className={inputClass}
             required
           />
         </label>
-        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-600">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-300">
           שעת סיום
           <input
             type="time"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
-            className="rounded border border-gray-300 p-2"
+            className={inputClass}
             required
           />
         </label>
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-gray-600">הפסקות</p>
+        <p className="text-sm text-gray-300">הפסקות</p>
         {breaks.map((b, i) => (
           <div key={i} className="flex items-center gap-2">
             <input
               type="time"
               value={b.starts_at}
               onChange={(e) => updateBreak(i, "starts_at", e.target.value)}
-              className="rounded border border-gray-300 p-2"
+              className={inputClass}
             />
             <span className="text-gray-400">—</span>
             <input
               type="time"
               value={b.ends_at}
               onChange={(e) => updateBreak(i, "ends_at", e.target.value)}
-              className="rounded border border-gray-300 p-2"
+              className={inputClass}
             />
             <button
               type="button"
               onClick={() => removeBreak(i)}
-              className="text-sm text-red-600 underline"
+              className="text-sm text-red-400 underline"
             >
               הסרה
             </button>
           </div>
         ))}
-        <button type="button" onClick={addBreak} className="w-fit text-sm underline">
+        <button type="button" onClick={addBreak} className="text-neon-ice w-fit text-sm underline">
           + הוספת הפסקה
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-black p-2 text-white disabled:opacity-50"
+        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
       >
         {pending ? "פותח יום..." : "פתיחת יום עבודה"}
       </button>

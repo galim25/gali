@@ -27,28 +27,28 @@ export function AnnouncementForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded border border-gray-200 p-4">
-      <h2 className="font-medium">פרסום הודעה חדשה</h2>
+    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
+      <h2 className="text-neon-ice font-medium">פרסום הודעה חדשה</h2>
       <input
         placeholder="כותרת"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="rounded border border-gray-300 p-2"
+        className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
         required
       />
       <textarea
         placeholder="תוכן ההודעה"
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="rounded border border-gray-300 p-2"
+        className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
         rows={4}
         required
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-black p-2 text-white disabled:opacity-50"
+        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
       >
         {pending ? "מפרסם..." : "פרסום"}
       </button>

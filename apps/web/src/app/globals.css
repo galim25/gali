@@ -1,26 +1,10 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Fixed dark brand theme (not OS light/dark auto-switching) — see CLAUDE.md. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  --color-prussian-blue: #0b132b;
+  --color-space-indigo: #1c2541;
+  --color-dusk-blue: #3a506b;
+  --color-tropical-teal: #5bc0be;
+  --color-neon-ice: #6fffe9;
 }

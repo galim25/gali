@@ -25,6 +25,10 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 - **לקוח** — נרשם/מתחבר עם שם מלא + טלפון + סיסמה. קובע תורים לעצמו ולילדיו, משנה תור, שולח בקשת ביטול (טעונה אישור הספר), מקבל תזכורות והודעות.
 - **מנהל מערכת (הספר)** — פותח ימי עבודה (תאריך, שעת התחלה/סיום, הפסקות), רואה ומנהל את כל היומן, קובע תורים ידנית, מוחק תורים/ימים שלמים (עם אזהרת אישור), מפרסם הודעות כלליות, מאשר/דוחה בקשות ביטול.
 
+### שם מנהל המערכת
+
+השם המוצג למנהל ("היי [שם]") הוא פשוט `User.full_name` של חשבון ה-administrator — אין הבחנה טכנית בין ספר לספר. כרגע קבוע כ-"יוסי הספר". כדי למסור את המערכת לספר אחר: לשנות את `ADMIN_FULL_NAME` ב-`packages/db/prisma/seed.ts` ולהריץ `pnpm db:seed` (עדכון אידמפוטנטי — `upsert` לפי `phone_number`, מעדכן גם חשבון קיים, לא רק יוצר חדש).
+
 ## ישויות עיקריות (ERD)
 
 `User` (role: customer/administrator) · `PasswordResetCode` · `Service` (duration_minutes, `is_child_service`) · `WorkDay` · `WorkBreak` · `BlockedTime` · `Appointment` (status: scheduled/cancelled, attendee_type: self/child/other) · `CancellationRequest` (status: pending/approved/rejected) · `Notification` · `Announcement` · `BlockedPhoneNumber`
@@ -57,6 +61,39 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
   1. `apps/web/src/proxy.ts` — רץ ב-edge *לפני* כל קוד עמוד, על כל נתיב תחת `/admin/:path*` (matcher). זו ההגנה שמונעת גישה ע"י הקלדת URL בלבד, גם אם עמוד ספציפי ישכח לבדוק הרשאה.
   2. `requireAdmin()` (`lib/auth/session.ts`) — נקרא בתוך כל עמוד/`page.tsx` תחת `/admin`.
   כל נתיב/עמוד ניהול חדש (כולל routes דינמיים כמו `/admin/day/[id]`) **חייב** גם להיכלל תחת ה-matcher ב-`proxy.ts` וגם לקרוא ל-`requireAdmin()` בעצמו — אף אחד מהשניים אינו תחליף לשני. (הערה: Next.js 16 החליף את השם `middleware.ts` ב-`proxy.ts` — קובץ בשם `middleware.ts` יגרום להתנגשות ולקריסת השרת אם `proxy.ts` כבר קיים.)
+
+## עיצוב (Design System)
+
+מסמכי מקור: אין קובץ עיצוב נפרד — הכללים כאן הם המקור היחיד, נקבעו בשיחה עם המשתמשת ב-2026-07-19.
+
+### לוגו
+
+- קומפוננטה: `<Logo />` ב-`apps/web/src/components/Logo.tsx`.
+- קובץ המקור: `apps/web/public/logo.svg`.
+- לעולם לא לשנות פרופורציות (הרוחב תמיד `auto` לפי גובה), לא להוסיף צללים.
+- גודל מינימלי: 24px.
+- מרווח סביב הלוגו: פרמטר `padding` אופציונלי (ברירת מחדל: חצי מהגובה). לשימוש ה-hero הגלובלי (ראו `<PageHeader />`) המרווח מוקטן במפורש ל-16px.
+- **הלוגו הוא כותרת-העל (hero) של כל עמוד — ממורכז, גובה 160px, מעל כל שאר התוכן.** זה מחליף כלל קודם ("תמיד בצד שמאל") שבוטל.
+- מתחת ללוגו, בצד ימין (`text-right`): המילה **"בס"ד"**, באותו גודל/צבע/משקל כמו טקסט הכותרת/ברכה שמתחתיה.
+- קומפוננטת `<PageHeader title?: string />` (`apps/web/src/components/PageHeader.tsx`) עוטפת את כל זה — כל עמוד אמור להשתמש בה בראש ה-`<main>` שלו במקום לשכפל את המבנה.
+
+### פלטת צבעים (Tailwind theme tokens, `globals.css`)
+
+| טוקן | HEX | תפקיד |
+|---|---|---|
+| `prussian-blue` | `#0b132b` | רקע כהה גלובלי (`body`, כל `<main>`) |
+| `space-indigo` | `#1c2541` | רקע כרטיסים/משטחים מורמים |
+| `dusk-blue` | `#3a506b` | טקסט משני/עמום (תאריכים, timestamps) |
+| `tropical-teal` | `#5bc0be` | CTA ראשי (רקע כפתור), מסגרות |
+| `neon-ice` | `#6fffe9` | טקסט ראשי/כותרות על רקע כהה |
+
+**ערכת נושא כהה קבועה** — לא מתחלף אוטומטית לפי `prefers-color-scheme`. אין בפלטה גוון בהיר/ניטרלי, אז אין "מצב בהיר" חלופי כרגע.
+
+**חריג מכוון:** עמודי הדפסה/ייצוא (`admin/day/[id]/print`, `admin/print-all`) **נשארים בהירים** (רקע לבן, טקסט כהה) בכוונה — הם מיועדים להדפסה/PDF בפועל, ורקע כהה שם מבזבז דיו ופוגע בקריאות על נייר.
+
+### פונט
+
+- **Rubik** (Google Fonts, `next/font/google`, subsets `hebrew`+`latin`), נטען גלובלית ב-`app/layout.tsx` על תגית ה-`<html>`. אין להוסיף אותו שוב בעמודים בודדים.
 
 ## מפורשות מחוץ לסקופ (Out of Scope)
 

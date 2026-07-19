@@ -11,8 +11,9 @@ import {
   type ServiceOption,
   type OpenDate,
 } from "@/lib/actions/booking";
+import { PageHeader } from "@/components/PageHeader";
 
-type Step = "service" | "date" | "slot" | "attendee" | "done";
+type Step = "date" | "service" | "slot" | "attendee" | "done";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("he-IL", {
@@ -33,9 +34,10 @@ function formatDate(dateStr: string) {
 
 export default function BookAppointmentPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("service");
+  const [step, setStep] = useState<Step>("date");
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [dates, setDates] = useState<OpenDate[]>([]);
+  const [datesLoading, setDatesLoading] = useState(true);
   const [slots, setSlots] = useState<string[]>([]);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -45,23 +47,29 @@ export default function BookAppointmentPage() {
   const [slot, setSlot] = useState<string>();
   const [attendeeName, setAttendeeName] = useState("");
 
+  // Dates come first: the customer sees whether there's anything open at
+  // all before picking a service, instead of choosing a service and only
+  // then discovering there are no open dates. datesLoading avoids a false
+  // "no open dates" flash while the fetch is still in flight.
   useEffect(() => {
-    getServices().then(setServices);
+    getOpenDates()
+      .then(setDates)
+      .finally(() => setDatesLoading(false));
   }, []);
 
-  async function chooseService(s: ServiceOption) {
-    setService(s);
-    setError(undefined);
-    const openDates = await getOpenDates();
-    setDates(openDates);
-    setStep("date");
-  }
-
   async function chooseDate(d: OpenDate) {
-    if (!service) return;
     setDate(d);
     setError(undefined);
-    const available = await getSlotsForDate(d.work_day_id, service.id);
+    const available = await getServices();
+    setServices(available);
+    setStep("service");
+  }
+
+  async function chooseService(s: ServiceOption) {
+    if (!date) return;
+    setService(s);
+    setError(undefined);
+    const available = await getSlotsForDate(date.work_day_id, s.id);
     setSlots(available);
     setStep("slot");
   }
@@ -100,7 +108,7 @@ export default function BookAppointmentPage() {
   }
 
   function bookAnother() {
-    setStep("service");
+    setStep("date");
     setService(undefined);
     setDate(undefined);
     setSlot(undefined);
@@ -108,38 +116,42 @@ export default function BookAppointmentPage() {
   }
 
   return (
-    <main dir="rtl" className="mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <h1 className="text-2xl font-bold">קביעת תור</h1>
+    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title="קביעת תור" />
 
-      {step === "service" && (
+      {step === "date" && (
         <div className="flex flex-col gap-2">
-          <p className="text-gray-600">בחרו שירות:</p>
-          {services.map((s) => (
+          <p className="text-gray-300">בחרו תאריך:</p>
+          {datesLoading ? (
+            <p className="text-gray-400">טוען תאריכים...</p>
+          ) : (
+            dates.length === 0 && <p className="text-gray-400">אין כרגע ימים פתוחים להזמנה.</p>
+          )}
+          {dates.map((d) => (
             <button
-              key={s.id}
-              onClick={() => chooseService(s)}
-              className="rounded border border-gray-300 p-3 text-right hover:bg-gray-50"
+              key={d.work_day_id}
+              onClick={() => chooseDate(d)}
+              className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-3 text-right"
             >
-              {s.name} <span className="text-sm text-gray-500">({s.duration_minutes} דק&apos;)</span>
+              {formatDate(d.work_date)}
             </button>
           ))}
         </div>
       )}
 
-      {step === "date" && (
+      {step === "service" && (
         <div className="flex flex-col gap-2">
-          <p className="text-gray-600">בחרו תאריך:</p>
-          {dates.length === 0 && <p className="text-gray-500">אין כרגע ימים פתוחים להזמנה.</p>}
-          {dates.map((d) => (
+          <p className="text-gray-300">בחרו שירות:</p>
+          {services.map((s) => (
             <button
-              key={d.work_day_id}
-              onClick={() => chooseDate(d)}
-              className="rounded border border-gray-300 p-3 text-right hover:bg-gray-50"
+              key={s.id}
+              onClick={() => chooseService(s)}
+              className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-3 text-right"
             >
-              {formatDate(d.work_date)}
+              {s.name} <span className="text-sm text-gray-400">({s.duration_minutes} דק&apos;)</span>
             </button>
           ))}
-          <button onClick={() => setStep("service")} className="text-sm text-gray-500 underline">
+          <button onClick={() => setStep("date")} className="text-neon-ice text-sm underline">
             חזרה
           </button>
         </div>
@@ -147,22 +159,22 @@ export default function BookAppointmentPage() {
 
       {step === "slot" && (
         <div className="flex flex-col gap-2">
-          <p className="text-gray-600">בחרו שעה:</p>
-          {slots.length === 0 && <p className="text-gray-500">אין שעות פנויות ביום זה.</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          <p className="text-gray-300">בחרו שעה:</p>
+          {slots.length === 0 && <p className="text-gray-400">אין שעות פנויות ביום זה.</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="grid grid-cols-4 gap-2">
             {slots.map((s) => (
               <button
                 key={s}
                 disabled={pending}
                 onClick={() => chooseSlot(s)}
-                className="rounded border border-gray-300 p-2 hover:bg-gray-50 disabled:opacity-50"
+                className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-2 disabled:opacity-50"
               >
                 {formatTime(s)}
               </button>
             ))}
           </div>
-          <button onClick={() => setStep("date")} className="text-sm text-gray-500 underline">
+          <button onClick={() => setStep("service")} className="text-neon-ice text-sm underline">
             חזרה
           </button>
         </div>
@@ -170,24 +182,24 @@ export default function BookAppointmentPage() {
 
       {step === "attendee" && (
         <div className="flex flex-col gap-3">
-          <p className="text-gray-600">
+          <p className="text-gray-300">
             {service?.name} · {date && formatDate(date.work_date)} · {slot && formatTime(slot)}
           </p>
           <input
             placeholder="שם הילד/ה"
             value={attendeeName}
             onChange={(e) => setAttendeeName(e.target.value)}
-            className="rounded border border-gray-300 p-2"
+            className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
           />
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             onClick={() => confirm()}
             disabled={pending || !attendeeName.trim()}
-            className="rounded bg-black p-2 text-white disabled:opacity-50"
+            className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
           >
             {pending ? "שומר..." : "אישור קביעת תור"}
           </button>
-          <button onClick={() => setStep("slot")} className="text-sm text-gray-500 underline">
+          <button onClick={() => setStep("slot")} className="text-neon-ice text-sm underline">
             חזרה
           </button>
         </div>
@@ -195,11 +207,14 @@ export default function BookAppointmentPage() {
 
       {step === "done" && (
         <div className="flex flex-col gap-3">
-          <p className="text-lg">התור נקבע בהצלחה!</p>
-          <button onClick={bookAnother} className="rounded border border-black p-2">
+          <p className="text-neon-ice text-lg">התור נקבע בהצלחה!</p>
+          <button onClick={bookAnother} className="border-tropical-teal text-neon-ice rounded border p-2">
             קביעת תור נוסף
           </button>
-          <button onClick={() => router.push("/account/appointments")} className="rounded bg-black p-2 text-white">
+          <button
+            onClick={() => router.push("/account/appointments")}
+            className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium"
+          >
             לצפייה בתורים שלי
           </button>
         </div>

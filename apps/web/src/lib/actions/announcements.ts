@@ -40,3 +40,36 @@ export async function createAnnouncementAction(input: {
   revalidatePath("/account");
   return { success: true };
 }
+
+export async function updateAnnouncementAction(input: {
+  id: string;
+  title: string;
+  content: string;
+}): Promise<CreateAnnouncementResult> {
+  const session = await requireAdminSession();
+  if (!session) return { error: "אין הרשאה" };
+
+  const title = input.title.trim();
+  const content = input.content.trim();
+  if (!title || !content) return { error: "יש למלא כותרת ותוכן" };
+
+  await prisma.announcement.update({
+    where: { id: input.id },
+    data: { title, content },
+  });
+
+  revalidatePath("/admin/announcements");
+  revalidatePath("/account");
+  return { success: true };
+}
+
+export async function deleteAnnouncementAction(id: string): Promise<CreateAnnouncementResult> {
+  const session = await requireAdminSession();
+  if (!session) return { error: "אין הרשאה" };
+
+  await prisma.announcement.delete({ where: { id } });
+
+  revalidatePath("/admin/announcements");
+  revalidatePath("/account");
+  return { success: true };
+}

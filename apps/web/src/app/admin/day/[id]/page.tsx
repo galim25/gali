@@ -10,6 +10,7 @@ import { MoveAppointmentButton } from "./MoveAppointmentButton";
 import { CancelAppointmentButton } from "./CancelAppointmentButton";
 import { CreateManualAppointmentForm } from "./CreateManualAppointmentForm";
 import { DeleteWorkDayButton } from "./DeleteWorkDayButton";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatHHMM(d: Date) {
   return d.toLocaleTimeString("en-GB", {
@@ -46,16 +47,16 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
   );
 
   return (
-    <main dir="rtl" className="mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{formatWorkDate(workDay.work_date)}</h1>
-        <Link href="/admin" className="text-sm text-gray-500 underline">
+    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title={formatWorkDate(workDay.work_date)} />
+      <div className="flex justify-end">
+        <Link href="/admin" className="text-neon-ice text-sm underline">
           חזרה לניהול
         </Link>
       </div>
 
       <div className="flex items-center justify-between">
-        <Link href={`/admin/day/${workDay.id}/print`} className="text-sm underline">
+        <Link href={`/admin/day/${workDay.id}/print`} className="text-neon-ice text-sm underline">
           הדפסה / שמירה כ-PDF
         </Link>
         <DeleteWorkDayButton workDayId={workDay.id} />
@@ -70,7 +71,7 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
       <CreateManualAppointmentForm workDayId={workDay.id} />
 
       <div className="flex flex-col gap-2">
-        <h2 className="font-medium">לוח היום ({appointments.length} תורים)</h2>
+        <h2 className="text-neon-ice font-medium">לוח היום ({appointments.length} תורים)</h2>
         <ul className="flex flex-col gap-1">
           {timeline.map((s, i) => {
             if (s.kind === "free") {
@@ -82,18 +83,18 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
             }
             if (s.kind === "break" || s.kind === "blocked") {
               return (
-                <li key={i} className="rounded bg-gray-100 p-2 text-sm text-gray-500">
+                <li key={i} className="border-dusk-blue rounded border p-2 text-sm text-gray-300">
                   {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} ·{" "}
                   {s.kind === "break" ? "הפסקה" : "חסום"}
                 </li>
               );
             }
             return (
-              <li key={s.id} className="rounded border border-blue-300 bg-blue-100 p-3 text-sm">
-                <p className="font-medium">
+              <li key={s.id} className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
+                <p className="text-neon-ice font-medium">
                   {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} · {s.service_name}
                 </p>
-                <p className="text-gray-700">
+                <p className="text-gray-300">
                   {s.customer_name}
                   {s.attendee_type === "child" && ` (עבור: ${s.attendee_name})`}
                   {!s.has_account && " · תור ידני"}

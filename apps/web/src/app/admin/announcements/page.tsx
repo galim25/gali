@@ -3,6 +3,8 @@ import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { requireAdmin } from "@/lib/auth/session";
 import { getAnnouncements } from "@/lib/actions/announcements";
 import { AnnouncementForm } from "./AnnouncementForm";
+import { AnnouncementItem } from "./AnnouncementItem";
+import { PageHeader } from "@/components/PageHeader";
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("he-IL", {
@@ -19,10 +21,10 @@ export default async function AnnouncementsPage() {
   const announcements = await getAnnouncements();
 
   return (
-    <main dir="rtl" className="mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">הודעות כלליות</h1>
-        <Link href="/admin" className="text-sm text-gray-500 underline">
+    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title="הודעות כלליות" />
+      <div className="flex justify-end">
+        <Link href="/admin" className="text-neon-ice text-sm underline">
           חזרה לניהול
         </Link>
       </div>
@@ -30,14 +32,10 @@ export default async function AnnouncementsPage() {
       <AnnouncementForm />
 
       <div className="flex flex-col gap-2">
-        {announcements.length === 0 && <p className="text-gray-500">אין הודעות שפורסמו.</p>}
+        {announcements.length === 0 && <p className="text-gray-400">אין הודעות שפורסמו.</p>}
         <ul className="flex flex-col gap-2">
           {announcements.map((a) => (
-            <li key={a.id} className="rounded border border-gray-200 p-3 text-sm">
-              <p className="font-medium">{a.title}</p>
-              <p className="whitespace-pre-wrap text-gray-600">{a.content}</p>
-              <p className="text-gray-400">{formatDateTime(a.published_at)}</p>
-            </li>
+            <AnnouncementItem key={a.id} announcement={a} publishedAt={formatDateTime(a.published_at)} />
           ))}
         </ul>
       </div>
