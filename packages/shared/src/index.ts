@@ -45,6 +45,13 @@ export function localDateToUtcMidnight(date: Date = new Date()): Date {
  * library is installed, so this uses the standard Intl "longOffset" trick:
  * read the real UTC offset for a close guess, then apply it.
  */
+export function formatIsraelTime(d: Date): string {
+  return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: ISRAEL_TIME_ZONE });
+}
+export function formatIsraelDate(d: Date): string {
+  return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", timeZone: ISRAEL_TIME_ZONE });
+}
+
 export function zonedTimeToUtc(dateStr: string, timeStr: string, timeZone: string): Date {
   const naiveUtc = new Date(`${dateStr}T${timeStr}:00Z`);
   const offsetPart = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })

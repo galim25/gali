@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, Prisma } from "@barberbook/db";
-import { getSmsProvider } from "@barberbook/shared";
+import { getSmsProvider, formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
-import { formatIsraelDate, formatIsraelTime, notifyAppointmentCancelled } from "@/lib/notifyCustomer";
+import { notifyAppointmentCancelled } from "@/lib/notifyCustomer";
 import type { BookingResult } from "@/lib/actions/booking";
 
 export type AdminAppointmentView = {

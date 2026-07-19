@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@barberbook/db";
+import { formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
-import { formatIsraelDate, formatIsraelTime, sendCustomerNotification } from "@/lib/notifyCustomer";
+import { sendCustomerNotification } from "@/lib/notifyCustomer";
 import type { BookingResult } from "@/lib/actions/booking";
 
 async function requireAdminSession() {

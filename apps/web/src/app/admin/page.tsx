@@ -40,6 +40,9 @@ export default async function AdminPage() {
           <Link href="/admin/blocked-customers" className="text-sm text-gray-500 underline">
             לקוחות חסומים
           </Link>
+          <Link href="/admin/announcements" className="text-sm text-gray-500 underline">
+            הודעות כלליות
+          </Link>
         </div>
       </div>
 

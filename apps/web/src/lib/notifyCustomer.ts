@@ -1,12 +1,5 @@
 import { prisma, type NotificationType } from "@barberbook/db";
-import { getSmsProvider, ISRAEL_TIME_ZONE } from "@barberbook/shared";
-
-export function formatIsraelTime(d: Date) {
-  return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: ISRAEL_TIME_ZONE });
-}
-export function formatIsraelDate(d: Date) {
-  return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", timeZone: ISRAEL_TIME_ZONE });
-}
+import { getSmsProvider, formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
 
 type CustomerNotificationInput = {
   user_id: string;
