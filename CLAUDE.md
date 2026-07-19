@@ -20,6 +20,8 @@ Browser / Mobile Web
 Worker Container — שולח תזכורות, החלטות ביטול, SMS על שינוי תור
 ```
 
+**ידוע ופתוח:** `apps/worker`'s `pnpm build` (`tsc`) + `pnpm start` (`node dist/index.js`) לא עובד כרגע בפועל — `packages/shared`/`packages/db` נצרכים כמקור TS ישיר (בלי build step משלהם), ו-Node הרץ-CommonJS-רגיל לא יודע לפענח את זה. עד שזה יתוקן, מריצים את ה-worker דרך `pnpm exec tsx --env-file=.env src/index.ts` (בלי `--watch` לריצה יציבה ארוכת-טווח) — זה עובד תקין (`tsx` מתרגם TS "on the fly", כולל בין-חבילתי), רק שזה טכנית dev-runtime ולא בינארי מקומפל.
+
 ## משתמשים
 
 - **לקוח** — נרשם/מתחבר עם שם מלא + טלפון + סיסמה. קובע תורים לעצמו ולילדיו, משנה תור, שולח בקשת ביטול (טעונה אישור הספר), מקבל תזכורות והודעות.
