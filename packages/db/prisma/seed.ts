@@ -6,7 +6,7 @@ async function main() {
   for (const service of SERVICE_DEFINITIONS) {
     await prisma.service.upsert({
       where: { name: service.name },
-      update: { duration_minutes: service.duration_minutes },
+      update: { duration_minutes: service.duration_minutes, is_child_service: service.is_child_service },
       create: service,
     });
   }

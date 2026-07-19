@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -8,4 +8,23 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-export * from "@prisma/client";
+export { Prisma };
+export type {
+  User,
+  UserRole,
+  Service,
+  WorkDay,
+  WorkBreak,
+  BlockedTime,
+  Appointment,
+  AttendeeType,
+  AppointmentStatus,
+  CancellationRequest,
+  CancellationStatus,
+  Notification,
+  NotificationType,
+  NotificationStatus,
+  Announcement,
+  PasswordResetCode,
+  BlockedPhoneNumber,
+} from "@prisma/client";

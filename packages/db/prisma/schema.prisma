@@ -59,8 +59,21 @@ model User {
   cancellation_requests_review CancellationRequest[]  @relation("CancellationReviewedBy")
   notifications                Notification[]
   announcements_published      Announcement[]
+  blocked_phone_numbers        BlockedPhoneNumber[]
 
   @@map("users")
+}
+
+model BlockedPhoneNumber {
+  id                  String   @id @default(cuid())
+  phone_number        String   @unique
+  blocked_by_user_id  String
+  reason              String?
+  created_at          DateTime @default(now())
+
+  blocked_by User @relation(fields: [blocked_by_user_id], references: [id], onDelete: Restrict)
+
+  @@map("blocked_phone_numbers")
 }
 
 model PasswordResetCode {
@@ -82,6 +95,7 @@ model Service {
   id                String   @id @default(cuid())
   name              String   @unique
   duration_minutes  Int
+  is_child_service  Boolean  @default(false)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 

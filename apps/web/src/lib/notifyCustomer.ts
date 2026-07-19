@@ -1,0 +1,62 @@
+import { prisma, type NotificationType } from "@barberbook/db";
+import { getSmsProvider, ISRAEL_TIME_ZONE } from "@barberbook/shared";
+
+export function formatIsraelTime(d: Date) {
+  return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: ISRAEL_TIME_ZONE });
+}
+export function formatIsraelDate(d: Date) {
+  return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", timeZone: ISRAEL_TIME_ZONE });
+}
+
+type CustomerNotificationInput = {
+  user_id: string;
+  phone_number: string;
+  message: string;
+  type: NotificationType;
+  /**
+   * Only reference a row that will still exist after this call returns.
+   * A hard-deleted appointment can't be referenced — both fields are
+   * optional for exactly this case (e.g. purging history), and the
+   * cascade would delete the notification right along with its parent
+   * if we tried to point it at a row we're about to remove.
+   */
+  appointment_id?: string;
+  cancellation_request_id?: string;
+};
+
+/** SMS (mock provider — real delivery is Phase 4) + a persisted Notification row. The one place that writes to Notification, so every customer-facing message stays consistent. */
+export async function sendCustomerNotification(input: CustomerNotificationInput): Promise<void> {
+  await getSmsProvider().send(input.phone_number, input.message);
+  await prisma.notification.create({
+    data: {
+      user_id: input.user_id,
+      appointment_id: input.appointment_id ?? null,
+      cancellation_request_id: input.cancellation_request_id ?? null,
+      type: input.type,
+      content: input.message,
+      status: "sent",
+      sent_at: new Date(),
+    },
+  });
+}
+
+type CancelledAppointmentInfo = {
+  user_id: string;
+  phone_number: string;
+  service_name: string;
+  starts_at: Date;
+  /** Only pass when the appointment row will still exist after this call returns (see sendCustomerNotification). */
+  appointment_id?: string;
+};
+
+/** Used whenever the barber directly cancels/deletes an appointment (not a customer-initiated cancellation request). */
+export async function notifyAppointmentCancelled(info: CancelledAppointmentInfo): Promise<void> {
+  const message = `שים/י לב: התור שלך ל${info.service_name} בתאריך ${formatIsraelDate(info.starts_at)} בשעה ${formatIsraelTime(info.starts_at)} בוטל ע"י הספר.`;
+  await sendCustomerNotification({
+    user_id: info.user_id,
+    phone_number: info.phone_number,
+    message,
+    type: "appointment_changed",
+    appointment_id: info.appointment_id,
+  });
+}

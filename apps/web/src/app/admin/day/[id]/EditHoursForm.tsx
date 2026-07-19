@@ -1,0 +1,74 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { updateWorkDayHoursAction } from "@/lib/actions/workdays";
+
+export function EditHoursForm({
+  workDayId,
+  initialStartsAt,
+  initialEndsAt,
+}: {
+  workDayId: string;
+  initialStartsAt: string;
+  initialEndsAt: string;
+}) {
+  const router = useRouter();
+  const [startsAt, setStartsAt] = useState(initialStartsAt);
+  const [endsAt, setEndsAt] = useState(initialEndsAt);
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError(undefined);
+    const result = await updateWorkDayHoursAction({
+      work_day_id: workDayId,
+      starts_at: startsAt,
+      ends_at: endsAt,
+    });
+    setPending(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded border border-gray-200 p-4">
+      <h2 className="font-medium">עדכון שעות עבודה</h2>
+      <div className="flex gap-3">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-600">
+          שעת התחלה
+          <input
+            type="time"
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+            className="rounded border border-gray-300 p-2"
+            required
+          />
+        </label>
+        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-600">
+          שעת סיום
+          <input
+            type="time"
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+            className="rounded border border-gray-300 p-2"
+            required
+          />
+        </label>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded bg-black p-2 text-white disabled:opacity-50"
+      >
+        {pending ? "מעדכן..." : "עדכון שעות"}
+      </button>
+    </form>
+  );
+}

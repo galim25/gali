@@ -30,6 +30,11 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
     return { error: "מספר הטלפון כבר רשום במערכת" };
   }
 
+  const blocked = await prisma.blockedPhoneNumber.findUnique({ where: { phone_number } });
+  if (blocked) {
+    return { error: "לא ניתן להירשם עם מספר טלפון זה" };
+  }
+
   const user = await prisma.user.create({
     data: {
       full_name,

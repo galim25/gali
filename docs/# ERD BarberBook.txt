@@ -15,6 +15,7 @@ erDiagram
     USER ||--o{ CANCELLATION_REQUEST : "submits"
     USER ||--o{ NOTIFICATION : "receives"
     USER ||--o{ ANNOUNCEMENT : "publishes"
+    USER ||--o{ BLOCKED_PHONE_NUMBER : "blocks"
 
     SERVICE ||--o{ APPOINTMENT : "defines duration for"
 
@@ -131,6 +132,14 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+
+    BLOCKED_PHONE_NUMBER {
+        string id PK
+        string phone_number
+        string blocked_by_user_id FK
+        string reason
+        datetime created_at
+    }
 ```
 
 ## 3. Entities
@@ -139,7 +148,7 @@ erDiagram
 
 **Purpose:** מייצגת חשבון לקוח או חשבון מנהל מערכת המשמשים להזדהות ולהרשאות גישה.
 
-**Source:** US-001, US-002, US-003, US-004, US-006, US-007, US-008, US-009, US-011, US-013
+**Source:** US-001, US-002, US-003, US-004, US-006, US-007, US-008, US-009, US-011, US-013, US-014, US-016
 
 | Field         | Type                            | Required | Notes                          |
 | ------------- | ------------------------------- | -------- | ------------------------------ |
@@ -195,7 +204,7 @@ erDiagram
 
 **Purpose:** מייצגת תאריך שהספר פתח להזמנות ואת טווח שעות העבודה באותו יום.
 
-**Source:** US-004, US-010, US-011, US-012
+**Source:** US-004, US-010, US-011, US-012, US-015
 
 | Field      | Type     | Required | Notes                      |
 | ---------- | -------- | -------- | -------------------------- |
@@ -240,7 +249,7 @@ erDiagram
 
 **Purpose:** מייצגת תור לשירות עבור לקוח, ילד או אדם אחר ביומן העבודה.
 
-**Source:** US-002, US-004, US-005, US-006, US-007, US-008, US-009, US-011, US-012
+**Source:** US-002, US-004, US-005, US-006, US-007, US-008, US-009, US-011, US-012, US-015, US-016
 
 | Field             | Type                         | Required | Notes                                           |
 | ----------------- | ---------------------------- | -------- | ----------------------------------------------- |
@@ -279,7 +288,7 @@ erDiagram
 
 **Purpose:** מייצגת הודעה אישית ללקוח בנוגע לתזכורת, שינוי תור או החלטה בבקשת ביטול.
 
-**Source:** US-007, US-008, US-009
+**Source:** US-007, US-008, US-009, US-016
 
 | Field                   | Type                                                                     | Required | Notes                   |
 | ----------------------- | ------------------------------------------------------------------------ | -------- | ----------------------- |
@@ -310,6 +319,20 @@ erDiagram
 | published_at         | datetime        | yes      | מועד הפרסום                 |
 | created_at           | datetime        | yes      | Set at creation             |
 | updated_at           | datetime        | yes      | Updated on every change     |
+
+### BlockedPhoneNumber
+
+**Purpose:** מייצגת מספר טלפון שהספר חסם מהרשמה או קביעת תורים, בין אם קיים עבורו חשבון ובין אם לאו.
+
+**Source:** US-014
+
+| Field              | Type            | Required | Notes                                  |
+| ------------------ | --------------- | -------- | --------------------------------------- |
+| id                 | string          | yes      | Primary key                             |
+| phone_number       | string          | yes      | ייחודי; לא בהכרח שייך לחשבון קיים       |
+| blocked_by_user_id | reference: User | yes      | מנהל המערכת שביצע את החסימה             |
+| reason             | string          | no       | סיבת החסימה                             |
+| created_at         | datetime        | yes      | Set at creation                         |
 
 ## 4. Relationships
 
@@ -342,6 +365,12 @@ erDiagram
 * Description: חשבון מנהל מערכת יכול לפרסם מספר הודעות כלליות.
 * Cascade: restrict
 * Source: US-009, US-013
+
+**User → BlockedPhoneNumber:** one-to-many
+
+* Description: מנהל מערכת יכול לחסום מספר מספרי טלפון; רשומת החסימה עצמה אינה תלויה בקיום חשבון עבור המספר החסום.
+* Cascade: restrict
+* Source: US-014
 
 **Service → Appointment:** one-to-many
 
@@ -402,6 +431,9 @@ erDiagram
 | US-011     | User, WorkDay, BlockedTime, Appointment, Service            |
 | US-012     | WorkDay, Appointment                                        |
 | US-013     | User                                                        |
+| US-014     | User, BlockedPhoneNumber                                     |
+| US-015     | WorkDay, WorkBreak, BlockedTime, Appointment                 |
+| US-016     | User, WorkDay, Appointment, Notification                     |
 
 ## 6. Open Questions
 
