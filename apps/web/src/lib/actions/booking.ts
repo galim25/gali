@@ -5,6 +5,8 @@ import { localDateToUtcMidnight } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { findAvailableSlots, isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
+import { notifyAdminsOfNewBooking } from "@/lib/notifyAdmin";
+import { getRequiresApproval } from "@/lib/actions/settings";
 
 export type ServiceOption = {
   id: string;
@@ -13,7 +15,7 @@ export type ServiceOption = {
   is_child_service: boolean;
 };
 export type OpenDate = { work_day_id: string; work_date: string };
-export type BookingResult = { error?: string; success?: boolean };
+export type BookingResult = { error?: string; success?: boolean; pendingApproval?: boolean };
 
 export async function getServices(): Promise<ServiceOption[]> {
   return prisma.service.findMany({
@@ -63,11 +65,14 @@ export async function getSlotsForDate(
 ): Promise<string[]> {
   const service = await prisma.service.findUniqueOrThrow({ where: { id: service_id } });
   const { work_day, busy } = await loadBusyIntervals(work_day_id, excludeAppointmentId);
+  const now = new Date();
   return findAvailableSlots({
     work_day,
     busy,
     duration_minutes: service.duration_minutes,
-  }).map((d) => d.toISOString());
+  })
+    .filter((d) => d >= now)
+    .map((d) => d.toISOString());
 }
 
 type CreateAppointmentInput = {
@@ -92,8 +97,10 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
     return { error: "לא ניתן לקבוע תורים בחשבון זה. יש ליצור קשר עם הספר" };
   }
 
+  const requiresApproval = await getRequiresApproval();
+
   try {
-    await runSerializable(async (tx) => {
+    const booked = await runSerializable(async (tx) => {
       const service = await tx.service.findUniqueOrThrow({ where: { id: input.service_id } });
       const workDay = await tx.workDay.findUniqueOrThrow({
         where: { id: input.work_day_id },
@@ -110,6 +117,9 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
       ];
 
       const starts_at = new Date(input.starts_at);
+      if (starts_at < new Date()) {
+        throw new Error("PAST_SLOT");
+      }
       const ok = isSlotAvailable(
         starts_at,
         service.duration_minutes,
@@ -125,7 +135,7 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
         throw new Error("ATTENDEE_NAME_REQUIRED");
       }
 
-      await tx.appointment.create({
+      const appointment = await tx.appointment.create({
         data: {
           work_day_id: input.work_day_id,
           service_id: input.service_id,
@@ -138,11 +148,30 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
           status: "scheduled",
         },
       });
+
+      if (requiresApproval) {
+        await tx.bookingRequest.create({ data: { appointment_id: appointment.id } });
+      }
+
+      return {
+        appointment_id: appointment.id,
+        service_name: service.name,
+        customer_name: session.full_name,
+        starts_at,
+      };
     });
+
+    if (requiresApproval) {
+      return { success: true, pendingApproval: true };
+    }
+    await notifyAdminsOfNewBooking(booked);
     return { success: true };
   } catch (err) {
     if (err instanceof Error && err.message === "SLOT_TAKEN") {
       return { error: "השעה כבר תפוסה — יש לבחור שעה אחרת" };
+    }
+    if (err instanceof Error && err.message === "PAST_SLOT") {
+      return { error: "לא ניתן לקבוע תור לשעה שכבר עברה" };
     }
     if (err instanceof Error && err.message === "ATTENDEE_NAME_REQUIRED") {
       return { error: "יש להזין את שם הילד/ה" };
@@ -192,6 +221,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
       ];
 
       const starts_at = new Date(input.starts_at);
+      if (starts_at < new Date()) {
+        throw new Error("PAST_SLOT");
+      }
       const ok = isSlotAvailable(
         starts_at,
         appointment.service.duration_minutes,
@@ -213,6 +245,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
   } catch (err) {
     if (err instanceof Error && err.message === "SLOT_TAKEN") {
       return { error: "השעה כבר תפוסה — יש לבחור שעה אחרת" };
+    }
+    if (err instanceof Error && err.message === "PAST_SLOT") {
+      return { error: "לא ניתן לשנות תור לשעה שכבר עברה" };
     }
     if (err instanceof Error && err.message === "FORBIDDEN") {
       return { error: "אין הרשאה לשנות תור זה" };

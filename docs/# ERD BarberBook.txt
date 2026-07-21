@@ -16,6 +16,8 @@ erDiagram
     USER ||--o{ NOTIFICATION : "receives"
     USER ||--o{ ANNOUNCEMENT : "publishes"
     USER ||--o{ BLOCKED_PHONE_NUMBER : "blocks"
+    USER ||--o{ BOOKING_REQUEST : "reviews"
+    USER ||--o| WAITLIST_ENTRY : "joins"
 
     SERVICE ||--o{ APPOINTMENT : "defines duration for"
 
@@ -25,6 +27,7 @@ erDiagram
 
     APPOINTMENT ||--o| CANCELLATION_REQUEST : "receives"
     APPOINTMENT ||--o{ NOTIFICATION : "triggers"
+    APPOINTMENT ||--o| BOOKING_REQUEST : "requires"
     CANCELLATION_REQUEST ||--o{ NOTIFICATION : "triggers"
 
     USER {
@@ -114,13 +117,39 @@ erDiagram
         string user_id FK
         string appointment_id FK
         string cancellation_request_id FK
-        enum type "appointment_reminder, appointment_changed, cancellation_decision"
+        enum type "appointment_reminder, appointment_changed, cancellation_decision, appointment_booked, waitlist_slot_available, booking_decision"
         text content
         enum status "pending, sent, failed"
         datetime scheduled_at
         datetime sent_at
+        datetime read_at
         datetime created_at
         datetime updated_at
+    }
+
+    BOOKING_REQUEST {
+        string id PK
+        string appointment_id FK
+        enum status "pending, approved, rejected"
+        datetime requested_at
+        string reviewed_by_user_id FK
+        datetime reviewed_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    APP_SETTINGS {
+        string id PK
+        boolean requires_approval
+        datetime updated_at
+    }
+
+    WAITLIST_ENTRY {
+        string id PK
+        string user_id FK
+        string customer_name
+        string phone_number
+        datetime created_at
     }
 
     ANNOUNCEMENT {
@@ -286,9 +315,11 @@ erDiagram
 
 ### Notification
 
-**Purpose:** מייצגת הודעה אישית ללקוח בנוגע לתזכורת, שינוי תור או החלטה בבקשת ביטול.
+**Purpose:** מייצגת הודעה ללקוח או למנהל בנוגע לתזכורת, שינוי תור, החלטה בבקשת ביטול/תור, תור חדש שנקבע, או התפנות/הרחבת זמינות לרשימת המתנה.
 
-**Source:** US-007, US-008, US-009, US-016
+**Source:** US-007, US-008, US-009, US-016, US-019, US-020, US-021, US-024, US-025
+
+**הערת מודל:** אין `booking_request_id` נפרד — הודעת `booking_decision` מצביעה על `appointment_id` בלבד.
 
 | Field                   | Type                                                                     | Required | Notes                   |
 | ----------------------- | ------------------------------------------------------------------------ | -------- | ----------------------- |
@@ -296,11 +327,12 @@ erDiagram
 | user_id                 | reference: User                                                          | yes      | הלקוח שמקבל את ההודעה   |
 | appointment_id          | reference: Appointment                                                   | no       | התור הרלוונטי להודעה    |
 | cancellation_request_id | reference: CancellationRequest                                           | no       | בקשת הביטול הרלוונטית   |
-| type                    | enum: [appointment_reminder, appointment_changed, cancellation_decision] | yes      | סוג ההודעה              |
+| type                    | enum: [appointment_reminder, appointment_changed, cancellation_decision, appointment_booked, waitlist_slot_available, booking_decision] | yes | סוג ההודעה |
 | content                 | text                                                                     | yes      | תוכן ההודעה             |
 | status                  | enum: [pending, sent, failed]                                            | yes      | מצב השליחה              |
 | scheduled_at            | datetime                                                                 | no       | מועד השליחה המתוכנן     |
 | sent_at                 | datetime                                                                 | no       | מועד השליחה בפועל       |
+| read_at                 | datetime                                                                 | no       | מועד קריאה — בשימוש כרגע רק להתראות מנהל (appointment_booked) |
 | created_at              | datetime                                                                 | yes      | Set at creation         |
 | updated_at              | datetime                                                                 | yes      | Updated on every change |
 
@@ -333,6 +365,51 @@ erDiagram
 | blocked_by_user_id | reference: User | yes      | מנהל המערכת שביצע את החסימה             |
 | reason             | string          | no       | סיבת החסימה                             |
 | created_at         | datetime        | yes      | Set at creation                         |
+
+### BookingRequest
+
+**Purpose:** מייצגת בקשה לתור חדש שממתינה לאישור הספר, נוצרת רק כשמדיניות "דורש אישור" (ראו AppSettings) דלוקה בזמן קביעת התור.
+
+**Source:** US-019, US-020
+
+| Field               | Type                                 | Required | Notes                                                      |
+| ------------------- | ------------------------------------- | -------- | ------------------------------------------------------------ |
+| id                  | string                                | yes      | Primary key                                                 |
+| appointment_id      | reference: Appointment                | yes      | ייחודי — לכל תור בקשה אחת לכל היותר                        |
+| status              | enum: [pending, approved, rejected]   | yes      | מצב הבקשה                                                   |
+| requested_at        | datetime                              | yes      | מועד קביעת התור (=מועד הבקשה)                              |
+| reviewed_by_user_id | reference: User                       | no       | מנהל המערכת שהחליט                                          |
+| reviewed_at         | datetime                              | no       | מועד ההחלטה                                                 |
+| created_at          | datetime                              | yes      | Set at creation                                              |
+| updated_at          | datetime                              | yes      | Updated on every change                                      |
+
+**הערת מודל חשובה:** ה-`Appointment` הנלווה נוצר מיד עם הבקשה (status `scheduled`) ותופס את השעה ביומן — הבקשה אינה "רק כוונה", אלא ריזרווציה בפועל. דחיית הבקשה משנה את `Appointment.status` ל-`cancelled` ומשחררת את השעה; אישור לא משנה את התור כלל.
+
+### AppSettings
+
+**Purpose:** רשומת קונפיגורציה גלובלית יחידה (singleton) שקובעת אם תורים ובקשות ביטול חדשים דורשים אישור מפורש של הספר.
+
+**Source:** US-018
+
+| Field              | Type      | Required | Notes                                          |
+| ------------------ | --------- | -------- | ------------------------------------------------ |
+| id                 | string    | yes      | Primary key, קבוע כ-`"singleton"` — תמיד שורה אחת בלבד |
+| requires_approval  | boolean   | yes      | ברירת מחדל `false`                              |
+| updated_at         | datetime  | yes      | Updated on every change                          |
+
+### WaitlistEntry
+
+**Purpose:** מייצגת לקוח הממתין להודעה כשמתפנה תור או נפתחות שעות נוספות. כללית — אינה משויכת לתאריך, שעה או שירות ספציפיים.
+
+**Source:** US-022, US-023, US-024, US-025
+
+| Field         | Type             | Required | Notes                                        |
+| ------------- | ---------------- | -------- | ----------------------------------------------- |
+| id            | string           | yes      | Primary key                                     |
+| user_id       | reference: User  | yes      | ייחודי — לקוח יכול להיות ברשימה פעם אחת בלבד בו-זמנית |
+| customer_name | string           | yes      | לתצוגה לספר                                     |
+| phone_number  | string           | yes      | לשליחת SMS                                      |
+| created_at    | datetime         | yes      | Set at creation; קובע את סדר ההצגה לספר         |
 
 ## 4. Relationships
 
@@ -414,6 +491,24 @@ erDiagram
 * Cascade: cascade
 * Source: US-008
 
+**User → BookingRequest:** one-to-many, optional (reviewer)
+
+* Description: מנהל מערכת יכול לסקור מספר בקשות תורים לאורך זמן; אם המשתמש נמחק, השדה מתאפס ולא נמחקת הבקשה עצמה.
+* Cascade: set null
+* Source: US-020
+
+**Appointment → BookingRequest:** one-to-zero-or-one
+
+* Description: לתור יכולה להיות לכל היותר בקשת אישור אחת — נוצרת רק כשהתור נקבע בזמן שמדיניות "דורש אישור" דלוקה.
+* Cascade: cascade
+* Source: US-019
+
+**User → WaitlistEntry:** one-to-zero-or-one
+
+* Description: לקוח יכול להיות ברשימת ההמתנה פעם אחת בלבד בו-זמנית.
+* Cascade: cascade
+* Source: US-022
+
 ## 5. Coverage Map
 
 | User Story | Entities Involved                                           |
@@ -434,9 +529,20 @@ erDiagram
 | US-014     | User, BlockedPhoneNumber                                     |
 | US-015     | WorkDay, WorkBreak, BlockedTime, Appointment                 |
 | US-016     | User, WorkDay, Appointment, Notification                     |
+| US-017     | User, Appointment, Notification                              |
+| US-018     | AppSettings                                                  |
+| US-019     | User, Appointment, BookingRequest, AppSettings                |
+| US-020     | User, BookingRequest, Appointment, Notification               |
+| US-021     | User, Appointment, Notification, AppSettings                  |
+| US-022     | User, WaitlistEntry                                           |
+| US-023     | User, WaitlistEntry                                           |
+| US-024     | Appointment, CancellationRequest, BookingRequest, WaitlistEntry, Notification |
+| US-025     | WorkDay, WaitlistEntry, Notification                          |
 
 ## 6. Open Questions
 
 * ה־PRD אינו דורש ניהול פרופילים קבועים לילדים. לכן פרטי הילד נשמרים ברמת התור באמצעות `attendee_name` ו־`attendee_type`, ללא ישות `Child` נפרדת.
 * ה־PRD מציין מחיקה של תורים ויומנים ללא אפשרות שחזור. לכן המודל מניח מחיקה מלאה ולא שמירה בארכיון.
 * המודל מניח שלכל תור יכולה להיות בקשת ביטול פעילה אחת בכל זמן. לאחר דחייה, ניתן לשמור את אותה בקשה כהיסטוריה או לפתוח בקשה חדשה בהתאם לכללי המוצר.
+* `AppSettings` הוא סינגלטון בכוונה (PK קבוע `"singleton"`) ולא טבלת key-value כללית — כרגע יש רק הגדרה אחת (`requires_approval`); אם יתווספו הגדרות גלובליות נוספות בעתיד, סביר להוסיף אותן כעמודות לאותה שורה ולא לבנות מנגנון גנרי.
+* `WaitlistEntry` כללי במכוון (לא לפי תאריך/שירות) לפי דרישת המוצר בפועל — לקוח מקבל הודעה על כל התפנות, לא רק על ההתפנות שרלוונטית לו ספציפית.

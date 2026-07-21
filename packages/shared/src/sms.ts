@@ -8,9 +8,18 @@ export class MockSmsProvider implements SmsProvider {
   }
 }
 
-// Phase 4 will add real providers (e.g. 019sms/InforU/Twilio) and select
-// between them based on process.env.SMS_PROVIDER. Mock is the only
-// implementation for now.
+// Current decision: reminders/updates go through in-app Notification rows only,
+// not SMS (see sendCustomerNotification / reminders.ts — both create a
+// Notification unconditionally regardless of which provider this returns).
+export class NoopSmsProvider implements SmsProvider {
+  async send(): Promise<void> {
+    // Intentionally no-op — SMS sending is disabled.
+  }
+}
+
+// Phase 4 will add real providers (e.g. 019sms/InforU/Twilio). Until then,
+// set SMS_PROVIDER="mock" to log outgoing messages instead of just recording
+// the in-app Notification; leave unset (default) to send nothing.
 export function getSmsProvider(): SmsProvider {
-  return new MockSmsProvider();
+  return process.env.SMS_PROVIDER === "mock" ? new MockSmsProvider() : new NoopSmsProvider();
 }

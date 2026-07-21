@@ -27,7 +27,7 @@ export default async function AppointmentsPage() {
       status: "scheduled",
       starts_at: { gte: new Date() },
     },
-    include: { service: true, cancellation_request: true },
+    include: { service: true, cancellation_request: true, booking_request: true },
     orderBy: { starts_at: "asc" },
   });
 
@@ -50,7 +50,9 @@ export default async function AppointmentsPage() {
             {a.attendee_type === "child" && (
               <p className="text-sm text-gray-400">עבור: {a.attendee_name}</p>
             )}
-            {a.cancellation_request?.status === "pending" ? (
+            {a.booking_request?.status === "pending" ? (
+              <p className="mt-2 text-sm text-gray-400">התור ממתין לאישור הספר</p>
+            ) : a.cancellation_request?.status === "pending" ? (
               <p className="mt-2 text-sm text-gray-400">בקשת ביטול נשלחה — ממתינה לאישור הספר</p>
             ) : (
               <div className="mt-2 flex flex-col gap-2">

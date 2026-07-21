@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/actions/auth";
 import { getWorkDaysAdmin } from "@/lib/actions/workdays";
 import { getPendingCancellationCount } from "@/lib/actions/cancellationRequests";
+import { getUnreadAdminNotificationCount } from "@/lib/actions/adminNotifications";
+import { getPendingBookingRequestCount } from "@/lib/actions/bookingRequests";
 import { OpenWorkDayForm } from "./OpenWorkDayForm";
 import { DeleteAllWorkDaysButton } from "./DeleteAllWorkDaysButton";
 import { PageHeader } from "@/components/PageHeader";
@@ -29,19 +31,33 @@ export default async function AdminPage() {
   const session = await requireAdmin();
   const workDays = await getWorkDaysAdmin();
   const pendingCancellations = await getPendingCancellationCount();
+  const unreadNotifications = await getUnreadAdminNotificationCount();
+  const pendingBookingRequests = await getPendingBookingRequestCount();
 
   return (
     <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
       <PageHeader title={`היי ${session.full_name}`} />
       <div className="flex flex-col items-start gap-1">
+        <Link href="/admin/booking-requests" className="text-neon-ice text-sm underline">
+          בקשות תורים{pendingBookingRequests > 0 && ` (${pendingBookingRequests})`}
+        </Link>
         <Link href="/admin/cancellation-requests" className="text-neon-ice text-sm underline">
           בקשות ביטול{pendingCancellations > 0 && ` (${pendingCancellations})`}
+        </Link>
+        <Link href="/admin/notifications" className="text-neon-ice text-sm underline">
+          התראות{unreadNotifications > 0 && ` (${unreadNotifications})`}
         </Link>
         <Link href="/admin/blocked-customers" className="text-neon-ice text-sm underline">
           לקוחות חסומים
         </Link>
+        <Link href="/admin/waitlist" className="text-neon-ice text-sm underline">
+          רשימת המתנה
+        </Link>
         <Link href="/admin/announcements" className="text-neon-ice text-sm underline">
           הודעות כלליות
+        </Link>
+        <Link href="/admin/settings" className="text-neon-ice text-sm underline">
+          הגדרות
         </Link>
       </div>
 

@@ -11,6 +11,8 @@ import {
   type ServiceOption,
   type OpenDate,
 } from "@/lib/actions/booking";
+import { joinWaitlistAction } from "@/lib/actions/waitlist";
+import { getRequiresApproval } from "@/lib/actions/settings";
 import { PageHeader } from "@/components/PageHeader";
 
 type Step = "date" | "service" | "slot" | "attendee" | "done";
@@ -41,6 +43,10 @@ export default function BookAppointmentPage() {
   const [slots, setSlots] = useState<string[]>([]);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
+  const [waitlistPending, setWaitlistPending] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
 
   const [service, setService] = useState<ServiceOption>();
   const [date, setDate] = useState<OpenDate>();
@@ -55,6 +61,7 @@ export default function BookAppointmentPage() {
     getOpenDates()
       .then(setDates)
       .finally(() => setDatesLoading(false));
+    getRequiresApproval().then(setRequiresApproval);
   }, []);
 
   async function chooseDate(d: OpenDate) {
@@ -104,7 +111,15 @@ export default function BookAppointmentPage() {
       setStep("slot");
       return;
     }
+    setPendingApproval(!!result.pendingApproval);
     setStep("done");
+  }
+
+  async function joinWaitlist() {
+    setWaitlistPending(true);
+    await joinWaitlistAction();
+    setWaitlistPending(false);
+    setWaitlistJoined(true);
   }
 
   function bookAnother() {
@@ -113,11 +128,18 @@ export default function BookAppointmentPage() {
     setDate(undefined);
     setSlot(undefined);
     setAttendeeName("");
+    setPendingApproval(false);
   }
 
   return (
     <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
       <PageHeader title="קביעת תור" />
+
+      {requiresApproval && step !== "done" && (
+        <p className="text-sm text-gray-400">
+          לתשומת ליבך: כרגע כל תור וכל בקשת ביטול דורשים אישור מפורש של הספר.
+        </p>
+      )}
 
       {step === "date" && (
         <div className="flex flex-col gap-2">
@@ -125,7 +147,24 @@ export default function BookAppointmentPage() {
           {datesLoading ? (
             <p className="text-gray-400">טוען תאריכים...</p>
           ) : (
-            dates.length === 0 && <p className="text-gray-400">אין כרגע ימים פתוחים להזמנה.</p>
+            dates.length === 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-gray-400">אין כרגע ימים פתוחים להזמנה.</p>
+                {waitlistJoined ? (
+                  <p className="text-neon-ice text-sm">
+                    נרשמת לרשימת ההמתנה — נעדכן אותך כשיתפנה תור.
+                  </p>
+                ) : (
+                  <button
+                    onClick={joinWaitlist}
+                    disabled={waitlistPending}
+                    className="border-tropical-teal text-neon-ice rounded border p-2 text-sm disabled:opacity-50"
+                  >
+                    {waitlistPending ? "נרשם..." : "הצטרפ/י לרשימת ההמתנה"}
+                  </button>
+                )}
+              </div>
+            )
           )}
           {dates.map((d) => (
             <button
@@ -160,7 +199,24 @@ export default function BookAppointmentPage() {
       {step === "slot" && (
         <div className="flex flex-col gap-2">
           <p className="text-gray-300">בחרו שעה:</p>
-          {slots.length === 0 && <p className="text-gray-400">אין שעות פנויות ביום זה.</p>}
+          {slots.length === 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-gray-400">אין שעות פנויות ביום זה.</p>
+              {waitlistJoined ? (
+                <p className="text-neon-ice text-sm">
+                  נרשמת לרשימת ההמתנה — נעדכן אותך כשיתפנה תור.
+                </p>
+              ) : (
+                <button
+                  onClick={joinWaitlist}
+                  disabled={waitlistPending}
+                  className="border-tropical-teal text-neon-ice rounded border p-2 text-sm disabled:opacity-50"
+                >
+                  {waitlistPending ? "נרשם..." : "הצטרפ/י לרשימת ההמתנה"}
+                </button>
+              )}
+            </div>
+          )}
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="grid grid-cols-4 gap-2">
             {slots.map((s) => (
@@ -207,7 +263,9 @@ export default function BookAppointmentPage() {
 
       {step === "done" && (
         <div className="flex flex-col gap-3">
-          <p className="text-neon-ice text-lg">התור נקבע בהצלחה!</p>
+          <p className="text-neon-ice text-lg">
+            {pendingApproval ? "הבקשה שלך נשלחה לאישור הספר." : "התור נקבע בהצלחה!"}
+          </p>
           <button onClick={bookAnother} className="border-tropical-teal text-neon-ice rounded border p-2">
             קביעת תור נוסף
           </button>

@@ -5,6 +5,8 @@ import { prisma } from "@barberbook/db";
 import { formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { sendCustomerNotification } from "@/lib/notifyCustomer";
+import { notifyWaitlistOfFreedSlot } from "@/lib/actions/waitlist";
+import { getRequiresApproval } from "@/lib/actions/settings";
 import type { BookingResult } from "@/lib/actions/booking";
 
 async function requireAdminSession() {
@@ -14,11 +16,16 @@ async function requireAdminSession() {
 }
 
 /**
- * US-008: the customer only *requests* cancellation — the appointment stays
- * scheduled until the barber approves it (see approveCancellationRequestAction).
+ * US-008, when the global approval switch is on: the customer only
+ * *requests* cancellation — the appointment stays scheduled until the
+ * barber approves it (see approveCancellationRequestAction).
  * CancellationRequest.appointment_id is unique in the schema (at most one
  * row per appointment, ever), so a prior rejected request is flipped back
  * to pending for a retry instead of inserting a second row.
+ *
+ * When the switch is off, cancellation happens immediately instead — same
+ * effect as the admin's own cancelAppointmentAction — with no
+ * CancellationRequest involved at all.
  */
 export async function requestCancellationAction(appointment_id: string): Promise<BookingResult> {
   const session = await getSession();
@@ -26,13 +33,22 @@ export async function requestCancellationAction(appointment_id: string): Promise
 
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointment_id },
-    include: { cancellation_request: true },
+    include: { cancellation_request: true, service: true },
   });
   if (!appointment || appointment.booked_by_user_id !== session.sub) {
     return { error: "אין הרשאה לבקש ביטול לתור זה" };
   }
   if (appointment.status !== "scheduled") {
     return { error: "התור כבר אינו פעיל" };
+  }
+
+  if (!(await getRequiresApproval())) {
+    await prisma.appointment.update({ where: { id: appointment_id }, data: { status: "cancelled" } });
+    if (appointment.starts_at >= new Date()) {
+      await notifyWaitlistOfFreedSlot(appointment.starts_at, appointment.service.name);
+    }
+    revalidatePath("/account/appointments");
+    return { success: true };
   }
 
   const existing = appointment.cancellation_request;
@@ -110,6 +126,9 @@ async function decideCancellationRequest(
       where: { id: request.appointment_id },
       data: { status: "cancelled" },
     });
+    if (request.appointment.starts_at >= new Date()) {
+      await notifyWaitlistOfFreedSlot(request.appointment.starts_at, request.appointment.service.name);
+    }
   }
 
   if (request.appointment.booked_by) {

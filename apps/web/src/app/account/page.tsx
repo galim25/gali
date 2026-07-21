@@ -3,6 +3,8 @@ import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/actions/auth";
 import { getAnnouncements } from "@/lib/actions/announcements";
+import { isOnWaitlist } from "@/lib/actions/waitlist";
+import { LeaveWaitlistButton } from "./LeaveWaitlistButton";
 import { PageHeader } from "@/components/PageHeader";
 
 function formatDate(d: Date) {
@@ -12,6 +14,7 @@ function formatDate(d: Date) {
 export default async function AccountPage() {
   const session = await getSession();
   const announcements = await getAnnouncements();
+  const onWaitlist = await isOnWaitlist();
 
   return (
     <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
@@ -31,6 +34,13 @@ export default async function AccountPage() {
           התורים שלי
         </Link>
       </div>
+
+      {onWaitlist && (
+        <div className="border-tropical-teal bg-space-indigo flex items-center justify-between rounded border p-3 text-sm">
+          <p className="text-neon-ice">את/ה ברשימת ההמתנה לתור פנוי</p>
+          <LeaveWaitlistButton />
+        </div>
+      )}
 
       {announcements.length > 0 && (
         <div className="flex flex-col gap-2">

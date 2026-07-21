@@ -32,10 +32,19 @@ enum CancellationStatus {
   rejected
 }
 
+enum BookingRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 enum NotificationType {
   appointment_reminder
   appointment_changed
   cancellation_decision
+  appointment_booked
+  waitlist_slot_available
+  booking_decision
 }
 
 enum NotificationStatus {
@@ -57,9 +66,11 @@ model User {
   appointments_booked          Appointment[]         @relation("AppointmentBookedBy")
   cancellation_requests_made   CancellationRequest[]  @relation("CancellationRequestedBy")
   cancellation_requests_review CancellationRequest[]  @relation("CancellationReviewedBy")
+  booking_requests_reviewed    BookingRequest[]
   notifications                Notification[]
   announcements_published      Announcement[]
   blocked_phone_numbers        BlockedPhoneNumber[]
+  waitlist_entry               WaitlistEntry?
 
   @@map("users")
 }
@@ -166,6 +177,7 @@ model Appointment {
   service              Service              @relation(fields: [service_id], references: [id], onDelete: Restrict)
   booked_by            User?                @relation("AppointmentBookedBy", fields: [booked_by_user_id], references: [id], onDelete: SetNull)
   cancellation_request CancellationRequest?
+  booking_request      BookingRequest?
   notifications        Notification[]
 
   @@index([work_day_id])
@@ -194,6 +206,22 @@ model CancellationRequest {
   @@map("cancellation_requests")
 }
 
+model BookingRequest {
+  id                    String               @id @default(cuid())
+  appointment_id        String               @unique
+  status                BookingRequestStatus @default(pending)
+  requested_at          DateTime             @default(now())
+  reviewed_by_user_id   String?
+  reviewed_at           DateTime?
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+
+  appointment  Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  reviewed_by  User?       @relation(fields: [reviewed_by_user_id], references: [id], onDelete: SetNull)
+
+  @@map("booking_requests")
+}
+
 model Notification {
   id                        String              @id @default(cuid())
   user_id                   String
@@ -204,6 +232,7 @@ model Notification {
   status                    NotificationStatus  @default(pending)
   scheduled_at              DateTime?
   sent_at                   DateTime?
+  read_at                   DateTime?
   created_at                DateTime            @default(now())
   updated_at                DateTime            @updatedAt
 
@@ -214,6 +243,32 @@ model Notification {
   @@index([user_id])
   @@index([status, scheduled_at])
   @@map("notifications")
+}
+
+/**
+ * Single global row (id fixed to "singleton", see settings.ts's get-or-create
+ * helper — always the only guaranteed way there's exactly one row) that
+ * decides whether new customer bookings/cancellations need the barber's
+ * explicit approval, or happen instantly. Not per-day, per US request.
+ */
+model AppSettings {
+  id                 String   @id @default("singleton")
+  requires_approval  Boolean  @default(false)
+  updated_at         DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model WaitlistEntry {
+  id            String   @id @default(cuid())
+  user_id       String   @unique
+  customer_name String
+  phone_number  String
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("waitlist_entries")
 }
 
 model Announcement {

@@ -5,6 +5,7 @@ import { prisma, Prisma } from "@barberbook/db";
 import { ISRAEL_TIME_ZONE, localDateToUtcMidnight, zonedTimeToUtc } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { notifyAppointmentCancelled } from "@/lib/notifyCustomer";
+import { notifyWaitlistOfExtendedHours } from "@/lib/actions/waitlist";
 
 export type WorkDayBreak = { id: string; starts_at: Date; ends_at: Date };
 export type WorkDayWithBreaks = {
@@ -86,10 +87,16 @@ export async function updateWorkDayHoursAction(
     return { error: "יש תורים, הפסקות או חסימות מחוץ לטווח השעות החדש — יש להזיז אותם קודם" };
   }
 
+  const extended = starts_at < workDay.starts_at || ends_at > workDay.ends_at;
+
   await prisma.workDay.update({
     where: { id: input.work_day_id },
     data: { starts_at, ends_at },
   });
+
+  if (extended) {
+    await notifyWaitlistOfExtendedHours(workDay.work_date);
+  }
 
   revalidatePath("/admin");
   revalidatePath(`/admin/day/${input.work_day_id}`);

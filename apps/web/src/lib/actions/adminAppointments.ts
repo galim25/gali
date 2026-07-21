@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
 import { notifyAppointmentCancelled } from "@/lib/notifyCustomer";
+import { notifyWaitlistOfFreedSlot } from "@/lib/actions/waitlist";
 import type { BookingResult } from "@/lib/actions/booking";
 
 export type AdminAppointmentView = {
@@ -168,6 +169,10 @@ export async function cancelAppointmentAction(appointment_id: string): Promise<B
       starts_at: appointment.starts_at,
       appointment_id: appointment.id,
     });
+  }
+
+  if (appointment.starts_at >= new Date()) {
+    await notifyWaitlistOfFreedSlot(appointment.starts_at, appointment.service.name);
   }
 
   revalidatePath(`/admin/day/${appointment.work_day_id}`);
