@@ -120,3 +120,17 @@ export async function notifyWaitlistOfExtendedHours(work_date: Date): Promise<vo
     `נפתחו שעות נוספות בתאריך ${formatIsraelDate(work_date)} — כדאי לבדוק אם יש תור מתאים!`,
   );
 }
+
+/**
+ * Called whenever the barber opens a brand-new work day (createWorkDayAction)
+ * — distinct from notifyWaitlistOfExtendedHours, which only fires when an
+ * already-open day's hours are widened. Without this, a customer who joins
+ * the waitlist while there are zero open dates at all would never actually
+ * get notified, since opening the very first day isn't an "extension" of
+ * anything — this was a real gap (fixed 2026-07-25).
+ */
+export async function notifyWaitlistOfNewWorkDay(work_date: Date): Promise<void> {
+  await notifyAllWaitlistEntries(
+    `נפתח תאריך חדש לקביעת תורים — ${formatIsraelDate(work_date)}. כדאי למהר ולקבוע!`,
+  );
+}

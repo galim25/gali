@@ -5,6 +5,7 @@ import { getAnnouncements } from "@/lib/actions/announcements";
 import { AnnouncementForm } from "./AnnouncementForm";
 import { AnnouncementItem } from "./AnnouncementItem";
 import { PageHeader } from "@/components/PageHeader";
+import { AdminBrandHero } from "@/components/AdminBrandHero";
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("he-IL", {
@@ -21,10 +22,10 @@ export default async function AnnouncementsPage() {
   const announcements = await getAnnouncements();
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title="הודעות כלליות" />
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title="הודעות כלליות" topBanner={<AdminBrandHero />} />
       <div className="flex justify-end">
-        <Link href="/admin" className="text-neon-ice text-sm underline">
+        <Link href="/admin" className="text-barber-teal text-sm underline">
           חזרה לניהול
         </Link>
       </div>
@@ -32,13 +33,14 @@ export default async function AnnouncementsPage() {
       <AnnouncementForm />
 
       <div className="flex flex-col gap-2">
-        {announcements.length === 0 && <p className="text-gray-400">אין הודעות שפורסמו.</p>}
+        {announcements.length === 0 && <p className="text-slate-muted">אין הודעות שפורסמו.</p>}
         <ul className="flex flex-col gap-2">
           {announcements.map((a) => (
             <AnnouncementItem key={a.id} announcement={a} publishedAt={formatDateTime(a.published_at)} />
           ))}
         </ul>
       </div>
+
     </main>
   );
 }

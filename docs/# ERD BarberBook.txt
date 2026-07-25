@@ -242,6 +242,7 @@ erDiagram
 | work_date  | date     | yes      | תאריך העבודה שנפתח להזמנות |
 | starts_at  | datetime | yes      | תחילת יום העבודה           |
 | ends_at    | datetime | yes      | סיום יום העבודה            |
+| is_blocked | boolean  | yes      | חוסם את היום מקביעת/שינוי תור ע"י לקוחות בלבד (ברירת מחדל: false) — תוספת מעבר ל-PRD המקורי, נוספה 2026-07-26, אינה חלק מ-US-004/US-010/US-011 |
 | created_at | datetime | yes      | Set at creation            |
 | updated_at | datetime | yes      | Updated on every change    |
 

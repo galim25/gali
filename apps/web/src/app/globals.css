@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
-/* Fixed dark brand theme (not OS light/dark auto-switching) — see CLAUDE.md. */
+/* App-wide light theme (2026-07-21, from the Figma "Hair Salon / Barber Shop"
+   template) — used by every page, including /admin since 2026-07-25. Print
+   pages (admin/day/[id]/print, admin/print-all) intentionally stay plain
+   white/gray for printing, unrelated to this theme, see CLAUDE.md. */
 @theme inline {
-  --color-prussian-blue: #0b132b;
-  --color-space-indigo: #1c2541;
-  --color-dusk-blue: #3a506b;
-  --color-tropical-teal: #5bc0be;
-  --color-neon-ice: #6fffe9;
+  --color-cream: #fdf8f0;
+  --color-barber-teal: #508186;
+  --color-barber-teal-dark: #3d666a;
+  --color-ink: #1f2421;
+  --color-slate-muted: #7c7c7c;
+  --color-cream-text: #fffcf7;
 }

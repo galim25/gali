@@ -1,18 +1,19 @@
-import { Logo } from "./Logo";
+import { BsdBar } from "./BsdBar";
 
 /**
- * Shared hero header for every page — logo centered above everything,
- * "בס"ד" pinned to the physical right underneath it (same size/color as the
- * optional title line below). See CLAUDE.md for the sizing rules.
+ * Shared header for every /admin page — reuses the same BsdBar the customer
+ * pages use. Renders as a fragment (not a wrapping div) so BsdBar's
+ * `-mx-6 -mt-6` full-bleed trick still works when PageHeader is the first
+ * child of the page's <main>. The logo lives in a top banner (`AdminBrandHero`,
+ * 2026-07-26) passed in via the optional `topBanner` slot, rendered between
+ * BsdBar and the title — every /admin page passes one now.
  */
-export function PageHeader({ title }: { title?: string }) {
+export function PageHeader({ title, topBanner }: { title?: string; topBanner?: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 pt-4 pb-2">
-      <div className="flex justify-center">
-        <Logo height={160} padding={16} />
-      </div>
-      <p className="text-neon-ice text-right font-medium">בס&quot;ד</p>
-      {title && <p className="text-neon-ice text-center font-medium">{title}</p>}
-    </div>
+    <>
+      <BsdBar />
+      {topBanner}
+      {title && <h1 className="text-barber-teal mt-6 mb-4 text-center text-3xl font-bold">{title}</h1>}
+    </>
   );
 }

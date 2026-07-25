@@ -27,7 +27,7 @@ export async function getServices(): Promise<ServiceOption[]> {
 export async function getOpenDates(): Promise<OpenDate[]> {
   const today = localDateToUtcMidnight();
   const days = await prisma.workDay.findMany({
-    where: { work_date: { gte: today } },
+    where: { work_date: { gte: today }, is_blocked: false },
     orderBy: { work_date: "asc" },
     select: { id: true, work_date: true },
   });
@@ -110,6 +110,9 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
           appointments: { where: { status: "scheduled" } },
         },
       });
+      if (workDay.is_blocked) {
+        throw new Error("DAY_BLOCKED");
+      }
       const busy: Interval[] = [
         ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
         ...workDay.blocked_times.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
@@ -176,6 +179,9 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
     if (err instanceof Error && err.message === "ATTENDEE_NAME_REQUIRED") {
       return { error: "יש להזין את שם הילד/ה" };
     }
+    if (err instanceof Error && err.message === "DAY_BLOCKED") {
+      return { error: "היום הזה חסום כרגע לקביעת תורים חדשים" };
+    }
     // Serializable transactions can fail under concurrent writes to the same day; treat as a retry-worthy conflict.
     return { error: "לא ניתן היה לשמור את התור, נסה/י שוב" };
   }
@@ -212,6 +218,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
           appointments: { where: { status: "scheduled" } },
         },
       });
+      if (workDay.is_blocked) {
+        throw new Error("DAY_BLOCKED");
+      }
       const busy: Interval[] = [
         ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
         ...workDay.blocked_times.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
@@ -251,6 +260,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
     }
     if (err instanceof Error && err.message === "FORBIDDEN") {
       return { error: "אין הרשאה לשנות תור זה" };
+    }
+    if (err instanceof Error && err.message === "DAY_BLOCKED") {
+      return { error: "היום הזה חסום כרגע לקביעת תורים חדשים" };
     }
     return { error: "לא ניתן היה לעדכן את התור, נסה/י שוב" };
   }

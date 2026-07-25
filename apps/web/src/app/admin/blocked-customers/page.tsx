@@ -5,6 +5,7 @@ import { getBlockedPhoneNumbers } from "@/lib/actions/blocklist";
 import { BlockPhoneNumberForm } from "./BlockPhoneNumberForm";
 import { UnblockButton } from "./UnblockButton";
 import { PageHeader } from "@/components/PageHeader";
+import { AdminBrandHero } from "@/components/AdminBrandHero";
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "numeric", timeZone: ISRAEL_TIME_ZONE });
@@ -15,10 +16,10 @@ export default async function BlockedCustomersPage() {
   const blocked = await getBlockedPhoneNumbers();
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title="לקוחות חסומים" />
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title="לקוחות חסומים" topBanner={<AdminBrandHero />} />
       <div className="flex justify-end">
-        <Link href="/admin" className="text-neon-ice text-sm underline">
+        <Link href="/admin" className="text-barber-teal text-sm underline">
           חזרה לניהול
         </Link>
       </div>
@@ -26,13 +27,13 @@ export default async function BlockedCustomersPage() {
       <BlockPhoneNumberForm />
 
       <div className="flex flex-col gap-2">
-        {blocked.length === 0 && <p className="text-gray-400">אין מספרים חסומים כרגע.</p>}
+        {blocked.length === 0 && <p className="text-slate-muted">אין מספרים חסומים כרגע.</p>}
         <ul className="flex flex-col gap-2">
           {blocked.map((b) => (
-            <li key={b.id} className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
-              <p className="text-neon-ice font-medium">{b.phone_number}</p>
-              {b.reason && <p className="text-gray-300">{b.reason}</p>}
-              <p className="text-gray-400">נחסם ב-{formatDate(b.created_at)}</p>
+            <li key={b.id} className="border-barber-teal bg-white rounded-xl border p-3 text-sm">
+              <p className="text-ink font-bold">{b.phone_number}</p>
+              {b.reason && <p className="text-slate-muted">{b.reason}</p>}
+              <p className="text-slate-muted">נחסם ב-{formatDate(b.created_at)}</p>
               <div className="mt-1">
                 <UnblockButton id={b.id} />
               </div>
@@ -40,6 +41,7 @@ export default async function BlockedCustomersPage() {
           ))}
         </ul>
       </div>
+
     </main>
   );
 }

@@ -24,10 +24,10 @@ export function RequestCancellationButton({ appointmentId }: { appointmentId: st
 
   return (
     <div className="flex flex-col gap-1">
-      <button onClick={request} disabled={pending} className="text-sm text-red-400 underline disabled:opacity-50">
+      <button onClick={request} disabled={pending} className="text-sm text-red-600 disabled:opacity-50">
         {pending ? "שולח..." : "בקשת ביטול"}
       </button>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import {
@@ -13,9 +13,16 @@ import {
 } from "@/lib/actions/booking";
 import { joinWaitlistAction } from "@/lib/actions/waitlist";
 import { getRequiresApproval } from "@/lib/actions/settings";
-import { PageHeader } from "@/components/PageHeader";
+import { BrandHero } from "@/components/BrandHero";
+import { BsdBar } from "@/components/BsdBar";
 
 type Step = "date" | "service" | "slot" | "attendee" | "done";
+
+const WEEKDAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+const MONTH_LABELS = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+];
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("he-IL", {
@@ -32,6 +39,94 @@ function formatDate(dateStr: string) {
     month: "numeric",
     timeZone: ISRAEL_TIME_ZONE,
   });
+}
+
+/** Real month grid, RTL (Sunday on the right) — only dates present in `openDates` are clickable. */
+function DateCalendar({
+  openDates,
+  onChoose,
+}: {
+  openDates: OpenDate[];
+  onChoose: (d: OpenDate) => void;
+}) {
+  const openByDate = useMemo(() => new Map(openDates.map((d) => [d.work_date, d])), [openDates]);
+  const availableMonths = useMemo(() => {
+    const months = new Set(openDates.map((d) => d.work_date.slice(0, 7)));
+    return Array.from(months).sort();
+  }, [openDates]);
+  const [monthKey, setMonthKey] = useState(availableMonths[0] ?? new Date().toISOString().slice(0, 7));
+
+  useEffect(() => {
+    if (availableMonths.length > 0 && !availableMonths.includes(monthKey)) {
+      setMonthKey(availableMonths[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableMonths.join(",")]);
+
+  const [year, month] = monthKey.split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const monthIndex = availableMonths.indexOf(monthKey);
+
+  const cells: (number | null)[] = [
+    ...Array(firstWeekday).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="border-barber-teal rounded-xl border bg-white p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          disabled={monthIndex <= 0}
+          onClick={() => setMonthKey(availableMonths[monthIndex - 1])}
+          className="text-barber-teal disabled:opacity-20"
+          aria-label="חודש קודם"
+        >
+          ‹
+        </button>
+        <p className="text-ink font-bold">
+          {MONTH_LABELS[month - 1]} {year}
+        </p>
+        <button
+          type="button"
+          disabled={monthIndex === -1 || monthIndex >= availableMonths.length - 1}
+          onClick={() => setMonthKey(availableMonths[monthIndex + 1])}
+          className="text-barber-teal disabled:opacity-20"
+          aria-label="חודש הבא"
+        >
+          ›
+        </button>
+      </div>
+      <div dir="rtl" className="grid grid-cols-7 gap-y-2 text-center">
+        {WEEKDAY_LABELS.map((w) => (
+          <div key={w} className="text-slate-muted text-xs">
+            {w}
+          </div>
+        ))}
+        {cells.map((day, i) => {
+          if (day === null) return <div key={i} />;
+          const dateStr = `${monthKey}-${String(day).padStart(2, "0")}`;
+          const open = openByDate.get(dateStr);
+          return (
+            <button
+              type="button"
+              key={i}
+              disabled={!open}
+              onClick={() => open && onChoose(open)}
+              className={
+                open
+                  ? "bg-barber-teal text-cream-text mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium"
+                  : "text-ink/30 mx-auto flex h-8 w-8 items-center justify-center text-sm"
+              }
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function BookAppointmentPage() {
@@ -132,151 +227,157 @@ export default function BookAppointmentPage() {
   }
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title="קביעת תור" />
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col p-6">
+      <BsdBar />
+      <BrandHero />
+      <h1 className="text-barber-teal mt-6 mb-6 text-center text-3xl font-bold">קביעת תור</h1>
 
       {requiresApproval && step !== "done" && (
-        <p className="text-sm text-gray-400">
+        <p className="text-slate-muted mb-4 text-sm">
           לתשומת ליבך: כרגע כל תור וכל בקשת ביטול דורשים אישור מפורש של הספר.
         </p>
       )}
 
       {step === "date" && (
-        <div className="flex flex-col gap-2">
-          <p className="text-gray-300">בחרו תאריך:</p>
+        <div className="flex flex-col gap-3">
+          <p className="text-ink font-bold">בחרו תאריך:</p>
           {datesLoading ? (
-            <p className="text-gray-400">טוען תאריכים...</p>
+            <p className="text-slate-muted">טוען תאריכים...</p>
+          ) : dates.length === 0 ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-slate-muted">אין כרגע ימים פתוחים להזמנה.</p>
+              {waitlistJoined ? (
+                <p className="text-barber-teal text-sm font-medium">
+                  תקבל/י התראה ברגע שייפתחו תאריכים חדשים לקביעת תורים.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={joinWaitlist}
+                  disabled={waitlistPending}
+                  className="border-barber-teal text-barber-teal rounded-full border py-2 text-sm font-medium disabled:opacity-50"
+                >
+                  {waitlistPending ? "נרשם..." : "התרע/י לי כשייפתחו תאריכים לקביעת תורים"}
+                </button>
+              )}
+            </div>
           ) : (
-            dates.length === 0 && (
-              <div className="flex flex-col gap-2">
-                <p className="text-gray-400">אין כרגע ימים פתוחים להזמנה.</p>
-                {waitlistJoined ? (
-                  <p className="text-neon-ice text-sm">
-                    נרשמת לרשימת ההמתנה — נעדכן אותך כשיתפנה תור.
-                  </p>
-                ) : (
-                  <button
-                    onClick={joinWaitlist}
-                    disabled={waitlistPending}
-                    className="border-tropical-teal text-neon-ice rounded border p-2 text-sm disabled:opacity-50"
-                  >
-                    {waitlistPending ? "נרשם..." : "הצטרפ/י לרשימת ההמתנה"}
-                  </button>
-                )}
-              </div>
-            )
+            <DateCalendar openDates={dates} onChoose={chooseDate} />
           )}
-          {dates.map((d) => (
-            <button
-              key={d.work_day_id}
-              onClick={() => chooseDate(d)}
-              className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-3 text-right"
-            >
-              {formatDate(d.work_date)}
-            </button>
-          ))}
         </div>
       )}
 
       {step === "service" && (
         <div className="flex flex-col gap-2">
-          <p className="text-gray-300">בחרו שירות:</p>
+          <p className="text-ink font-bold">בחרו שירות:</p>
           {services.map((s) => (
             <button
+              type="button"
               key={s.id}
               onClick={() => chooseService(s)}
-              className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-3 text-right"
+              className="border-barber-teal text-ink hover:bg-barber-teal/10 rounded-xl border bg-white p-3 text-right"
             >
-              {s.name} <span className="text-sm text-gray-400">({s.duration_minutes} דק&apos;)</span>
+              {s.name} <span className="text-slate-muted text-sm">({s.duration_minutes} דק&apos;)</span>
             </button>
           ))}
-          <button onClick={() => setStep("date")} className="text-neon-ice text-sm underline">
+          <button type="button" onClick={() => setStep("date")} className="text-barber-teal self-start text-sm font-medium">
             חזרה
           </button>
         </div>
       )}
 
       {step === "slot" && (
-        <div className="flex flex-col gap-2">
-          <p className="text-gray-300">בחרו שעה:</p>
+        <div className="flex flex-col gap-3">
+          <p className="text-ink font-bold">בחרו שעה:</p>
           {slots.length === 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-gray-400">אין שעות פנויות ביום זה.</p>
+              <p className="text-slate-muted">אין שעות פנויות ביום זה.</p>
               {waitlistJoined ? (
-                <p className="text-neon-ice text-sm">
+                <p className="text-barber-teal text-sm font-medium">
                   נרשמת לרשימת ההמתנה — נעדכן אותך כשיתפנה תור.
                 </p>
               ) : (
                 <button
+                  type="button"
                   onClick={joinWaitlist}
                   disabled={waitlistPending}
-                  className="border-tropical-teal text-neon-ice rounded border p-2 text-sm disabled:opacity-50"
+                  className="border-barber-teal text-barber-teal rounded-full border py-2 text-sm font-medium disabled:opacity-50"
                 >
                   {waitlistPending ? "נרשם..." : "הצטרפ/י לרשימת ההמתנה"}
                 </button>
               )}
             </div>
           )}
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <div className="grid grid-cols-4 gap-2">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex flex-wrap gap-2">
             {slots.map((s) => (
               <button
+                type="button"
                 key={s}
                 disabled={pending}
                 onClick={() => chooseSlot(s)}
-                className="border-tropical-teal bg-space-indigo text-neon-ice hover:bg-dusk-blue rounded border p-2 disabled:opacity-50"
+                className="border-barber-teal text-barber-teal hover:bg-barber-teal hover:text-cream-text rounded-full border px-4 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {formatTime(s)}
               </button>
             ))}
           </div>
-          <button onClick={() => setStep("service")} className="text-neon-ice text-sm underline">
+          <button type="button" onClick={() => setStep("service")} className="text-barber-teal self-start text-sm font-medium">
             חזרה
           </button>
         </div>
       )}
 
       {step === "attendee" && (
-        <div className="flex flex-col gap-3">
-          <p className="text-gray-300">
+        <div className="flex flex-col gap-4">
+          <p className="text-slate-muted">
             {service?.name} · {date && formatDate(date.work_date)} · {slot && formatTime(slot)}
           </p>
-          <input
-            placeholder="שם הילד/ה"
-            value={attendeeName}
-            onChange={(e) => setAttendeeName(e.target.value)}
-            className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
-          />
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          <label className="border-barber-teal focus-within:ring-barber-teal flex items-center gap-2 rounded-xl border bg-white px-4 py-3 focus-within:ring-2">
+            <input
+              placeholder="שם הילד/ה"
+              value={attendeeName}
+              onChange={(e) => setAttendeeName(e.target.value)}
+              className="text-ink placeholder-slate-muted w-full bg-transparent outline-none"
+            />
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <button
+            type="button"
             onClick={() => confirm()}
             disabled={pending || !attendeeName.trim()}
-            className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
+            className="bg-barber-teal text-cream-text rounded-full py-3 text-center text-lg font-bold tracking-wide uppercase disabled:opacity-50"
           >
             {pending ? "שומר..." : "אישור קביעת תור"}
           </button>
-          <button onClick={() => setStep("slot")} className="text-neon-ice text-sm underline">
+          <button type="button" onClick={() => setStep("slot")} className="text-barber-teal self-start text-sm font-medium">
             חזרה
           </button>
         </div>
       )}
 
       {step === "done" && (
-        <div className="flex flex-col gap-3">
-          <p className="text-neon-ice text-lg">
+        <div className="flex flex-col gap-4">
+          <p className="text-ink text-lg font-bold">
             {pendingApproval ? "הבקשה שלך נשלחה לאישור הספר." : "התור נקבע בהצלחה!"}
           </p>
-          <button onClick={bookAnother} className="border-tropical-teal text-neon-ice rounded border p-2">
+          <button
+            type="button"
+            onClick={bookAnother}
+            className="border-barber-teal text-barber-teal rounded-full border py-3 font-bold"
+          >
             קביעת תור נוסף
           </button>
           <button
+            type="button"
             onClick={() => router.push("/account/appointments")}
-            className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium"
+            className="bg-barber-teal text-cream-text rounded-full py-3 text-center font-bold"
           >
             לצפייה בתורים שלי
           </button>
         </div>
       )}
+
     </main>
   );
 }

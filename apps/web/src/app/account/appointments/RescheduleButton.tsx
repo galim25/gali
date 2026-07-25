@@ -73,22 +73,22 @@ export function RescheduleButton({
 
   if (!open) {
     return (
-      <button onClick={start} className="text-neon-ice text-sm underline">
+      <button onClick={start} className="text-barber-teal text-sm font-medium">
         שינוי תור
       </button>
     );
   }
 
   return (
-    <div className="border-tropical-teal mt-2 flex flex-col gap-2 rounded border p-3">
+    <div className="border-barber-teal mt-2 flex flex-col gap-2 rounded-xl border bg-white p-3">
       {!date && (
         <>
-          <p className="text-sm text-gray-300">בחרו תאריך חדש:</p>
+          <p className="text-ink text-sm font-bold">בחרו תאריך חדש:</p>
           {dates.map((d) => (
             <button
               key={d.work_day_id}
               onClick={() => chooseDate(d)}
-              className="border-tropical-teal text-neon-ice rounded border p-2 text-right text-sm"
+              className="border-barber-teal text-ink rounded-xl border p-2 text-right text-sm"
             >
               {formatDate(d.work_date)}
             </button>
@@ -97,24 +97,24 @@ export function RescheduleButton({
       )}
       {date && (
         <>
-          <p className="text-sm text-gray-300">בחרו שעה חדשה:</p>
-          <div className="grid grid-cols-4 gap-2">
+          <p className="text-ink text-sm font-bold">בחרו שעה חדשה:</p>
+          <div className="flex flex-wrap gap-2">
             {slots.map((s) => (
               <button
                 key={s}
                 disabled={pending}
                 onClick={() => chooseSlot(s)}
-                className="border-tropical-teal text-neon-ice rounded border p-2 text-sm"
+                className="border-barber-teal text-barber-teal rounded-full border px-3 py-2 text-sm font-medium"
               >
                 {formatTime(s)}
               </button>
             ))}
           </div>
-          {slots.length === 0 && <p className="text-sm text-gray-400">אין שעות פנויות ביום זה.</p>}
+          {slots.length === 0 && <p className="text-slate-muted text-sm">אין שעות פנויות ביום זה.</p>}
         </>
       )}
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <button onClick={() => setOpen(false)} className="text-sm text-gray-400 underline">
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <button onClick={() => setOpen(false)} className="text-slate-muted text-sm">
         ביטול
       </button>
     </div>

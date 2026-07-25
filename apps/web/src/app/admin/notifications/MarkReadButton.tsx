@@ -21,7 +21,7 @@ export function MarkReadButton({ hasUnread }: { hasUnread: boolean }) {
     <button
       onClick={markRead}
       disabled={pending}
-      className="text-neon-ice self-start text-sm underline disabled:opacity-50"
+      className="text-barber-teal self-start text-sm underline disabled:opacity-50"
     >
       {pending ? "מסמן..." : "סמן הכל כנקרא"}
     </button>

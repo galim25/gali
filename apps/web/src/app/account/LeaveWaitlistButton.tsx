@@ -16,7 +16,7 @@ export function LeaveWaitlistButton() {
   }
 
   return (
-    <button onClick={leave} disabled={pending} className="text-neon-ice text-sm underline disabled:opacity-50">
+    <button onClick={leave} disabled={pending} className="text-barber-teal text-sm font-medium disabled:opacity-50">
       {pending ? "מסיר..." : "הסרה מהרשימה"}
     </button>
   );

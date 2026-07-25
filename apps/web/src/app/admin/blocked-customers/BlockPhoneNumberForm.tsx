@@ -27,26 +27,26 @@ export function BlockPhoneNumberForm() {
   }
 
   return (
-    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
-      <h2 className="text-neon-ice font-medium">חסימת מספר טלפון</h2>
+    <form onSubmit={submit} className="border-barber-teal bg-white flex flex-col gap-3 rounded-xl border p-4">
+      <h2 className="text-ink font-bold">חסימת מספר טלפון</h2>
       <input
         placeholder="מספר טלפון"
         value={phoneNumber}
         onChange={(e) => setPhoneNumber(e.target.value)}
-        className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
+        className="border-barber-teal bg-white text-ink placeholder-slate-muted rounded-xl border p-2"
         required
       />
       <input
         placeholder="סיבה (לא חובה)"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        className="border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2"
+        className="border-barber-teal bg-white text-ink placeholder-slate-muted rounded-xl border p-2"
       />
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={pending}
-        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
+        className="bg-barber-teal text-cream-text rounded-full p-2 font-bold disabled:opacity-50"
       >
         {pending ? "חוסם..." : "חסימת מספר"}
       </button>

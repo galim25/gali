@@ -6,6 +6,7 @@ export const SERVICE_DEFINITIONS = [
   { name: "תספורת ילד", duration_minutes: 10, is_child_service: true },
   { name: "הסרת שיער בלייזר", duration_minutes: 10, is_child_service: false },
   { name: "חלאקה", duration_minutes: 15, is_child_service: false },
+  { name: "תספורת מבוגר + טיפול לייזר", duration_minutes: 20, is_child_service: false },
 ] as const;
 
 export const PHONE_NUMBER_REGEX = /^0\d{8,9}$/;

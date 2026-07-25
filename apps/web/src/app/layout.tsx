@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.className} h-full antialiased`}>
-      <body className="bg-prussian-blue min-h-full flex flex-col">{children}</body>
+      <body className="bg-cream min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

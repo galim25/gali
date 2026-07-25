@@ -37,35 +37,35 @@ export function EditHoursForm({
   }
 
   return (
-    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
-      <h2 className="text-neon-ice font-medium">עדכון שעות עבודה</h2>
+    <form onSubmit={submit} className="border-barber-teal bg-white flex flex-col gap-3 rounded-xl border p-4">
+      <h2 className="text-ink font-bold">עדכון שעות עבודה</h2>
       <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-300">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-slate-muted">
           שעת התחלה
           <input
             type="time"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
-            className="border-tropical-teal bg-space-indigo text-neon-ice rounded border p-2"
+            className="border-barber-teal bg-white text-ink rounded-xl border p-2"
             required
           />
         </label>
-        <label className="flex flex-1 flex-col gap-1 text-sm text-gray-300">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-slate-muted">
           שעת סיום
           <input
             type="time"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
-            className="border-tropical-teal bg-space-indigo text-neon-ice rounded border p-2"
+            className="border-barber-teal bg-white text-ink rounded-xl border p-2"
             required
           />
         </label>
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={pending}
-        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
+        className="bg-barber-teal text-cream-text rounded-full p-2 font-bold disabled:opacity-50"
       >
         {pending ? "מעדכן..." : "עדכון שעות"}
       </button>

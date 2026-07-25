@@ -65,13 +65,13 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
     router.refresh();
   }
 
-  const inputClass = "border-tropical-teal bg-space-indigo text-neon-ice placeholder-gray-400 rounded border p-2";
+  const inputClass = "border-barber-teal bg-white text-ink placeholder-slate-muted rounded-xl border p-2";
 
   return (
-    <form onSubmit={submit} className="border-tropical-teal flex flex-col gap-3 rounded border p-4">
-      <h2 className="text-neon-ice font-medium">קביעת תור ידנית (לקוח ללא חשבון)</h2>
+    <form onSubmit={submit} className="border-barber-teal bg-white flex flex-col gap-3 rounded-xl border p-4">
+      <h2 className="text-ink font-bold">קביעת תור ידנית (לקוח ללא חשבון)</h2>
 
-      <label className="flex flex-col gap-1 text-sm text-gray-300">
+      <label className="flex flex-col gap-1 text-sm text-slate-muted">
         שירות
         <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className={inputClass} required>
           <option value="" disabled>
@@ -86,7 +86,7 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
       </label>
 
       {serviceId && (
-        <label className="flex flex-col gap-1 text-sm text-gray-300">
+        <label className="flex flex-col gap-1 text-sm text-slate-muted">
           שעה
           <select value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={inputClass} required>
             <option value="" disabled>
@@ -119,12 +119,12 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
         />
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="bg-tropical-teal text-prussian-blue rounded p-2 font-medium disabled:opacity-50"
+        className="bg-barber-teal text-cream-text rounded-full p-2 font-bold disabled:opacity-50"
       >
         {pending ? "שומר..." : "קביעת תור"}
       </button>

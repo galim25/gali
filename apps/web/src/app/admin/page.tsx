@@ -9,6 +9,7 @@ import { getPendingBookingRequestCount } from "@/lib/actions/bookingRequests";
 import { OpenWorkDayForm } from "./OpenWorkDayForm";
 import { DeleteAllWorkDaysButton } from "./DeleteAllWorkDaysButton";
 import { PageHeader } from "@/components/PageHeader";
+import { AdminBrandHero } from "@/components/AdminBrandHero";
 
 function formatWorkDate(d: Date) {
   return d.toLocaleDateString("he-IL", {
@@ -35,51 +36,79 @@ export default async function AdminPage() {
   const pendingBookingRequests = await getPendingBookingRequestCount();
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title={`היי ${session.full_name}`} />
-      <div className="flex flex-col items-start gap-1">
-        <Link href="/admin/booking-requests" className="text-neon-ice text-sm underline">
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title={`היי ${session.full_name}`} topBanner={<AdminBrandHero />} />
+      <div className="flex flex-wrap justify-center gap-2">
+        <Link
+          href="/admin/booking-requests"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           בקשות תורים{pendingBookingRequests > 0 && ` (${pendingBookingRequests})`}
         </Link>
-        <Link href="/admin/cancellation-requests" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/cancellation-requests"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           בקשות ביטול{pendingCancellations > 0 && ` (${pendingCancellations})`}
         </Link>
-        <Link href="/admin/notifications" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/notifications"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           התראות{unreadNotifications > 0 && ` (${unreadNotifications})`}
         </Link>
-        <Link href="/admin/blocked-customers" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/blocked-customers"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           לקוחות חסומים
         </Link>
-        <Link href="/admin/waitlist" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/waitlist"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           רשימת המתנה
         </Link>
-        <Link href="/admin/announcements" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/announcements"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           הודעות כלליות
         </Link>
-        <Link href="/admin/settings" className="text-neon-ice text-sm underline">
+        <Link
+          href="/admin/settings"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
           הגדרות
         </Link>
       </div>
 
-      <OpenWorkDayForm />
+      <OpenWorkDayForm openWorkDates={workDays.map((d) => d.work_date.toISOString().slice(0, 10))} />
 
       <div className="flex flex-col gap-2">
-        <h2 className="text-neon-ice font-medium">ימי עבודה פתוחים</h2>
-        {workDays.length === 0 && <p className="text-gray-400">אין ימי עבודה פתוחים כרגע.</p>}
+        <h2 className="text-ink font-bold">ימי עבודה פתוחים</h2>
+        {workDays.length === 0 && <p className="text-slate-muted">אין ימי עבודה פתוחים כרגע.</p>}
         <ul className="flex flex-col gap-2">
           {workDays.map((d) => (
-            <li key={d.id} className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
+            <li key={d.id} className="border-barber-teal bg-white rounded-xl border p-3 text-sm">
               <div className="flex items-center justify-between">
-                <p className="text-neon-ice font-medium">{formatWorkDate(d.work_date)}</p>
-                <Link href={`/admin/day/${d.id}`} className="text-neon-ice text-sm underline">
+                <p className="text-ink font-bold">
+                  {formatWorkDate(d.work_date)}
+                  {d.is_blocked && (
+                    <span className="bg-barber-teal text-cream-text mr-2 rounded-full px-2 py-0.5 text-xs font-medium">
+                      חסום
+                    </span>
+                  )}
+                </p>
+                <Link href={`/admin/day/${d.id}`} className="text-barber-teal text-sm underline">
                   ניהול היום
                 </Link>
               </div>
-              <p className="text-gray-300">
+              <p className="text-slate-muted">
                 {formatHour(d.starts_at)}–{formatHour(d.ends_at)}
               </p>
               {d.breaks.length > 0 && (
-                <p className="text-gray-400">
+                <p className="text-slate-muted">
                   הפסקות:{" "}
                   {d.breaks
                     .map((b) => `${formatHour(b.starts_at)}–${formatHour(b.ends_at)}`)
@@ -91,19 +120,23 @@ export default async function AdminPage() {
         </ul>
       </div>
 
-      <div className="border-tropical-teal flex flex-col gap-2 rounded border p-4">
-        <h2 className="text-neon-ice font-medium">היסטוריה וגיבוי</h2>
-        <Link href="/admin/print-all" className="text-neon-ice text-sm underline">
+      <div className="border-barber-teal bg-white flex flex-col gap-2 rounded-xl border p-4">
+        <h2 className="text-ink font-bold">היסטוריה וגיבוי</h2>
+        <Link href="/admin/print-all" className="text-barber-teal text-sm underline">
           הדפסה / שמירת עותק כ-PDF של כל היומן
         </Link>
         <DeleteAllWorkDaysButton />
       </div>
 
       <form action={logoutAction}>
-        <button type="submit" className="text-neon-ice rounded border border-gray-500 px-4 py-2">
+        <button
+          type="submit"
+          className="border-barber-teal text-barber-teal rounded-full border px-4 py-2 font-medium"
+        >
           התנתקות
         </button>
       </form>
+
     </main>
   );
 }

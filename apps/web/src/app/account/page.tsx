@@ -5,7 +5,8 @@ import { logoutAction } from "@/lib/actions/auth";
 import { getAnnouncements } from "@/lib/actions/announcements";
 import { isOnWaitlist } from "@/lib/actions/waitlist";
 import { LeaveWaitlistButton } from "./LeaveWaitlistButton";
-import { PageHeader } from "@/components/PageHeader";
+import { BrandHero } from "@/components/BrandHero";
+import { BsdBar } from "@/components/BsdBar";
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", timeZone: ISRAEL_TIME_ZONE });
@@ -17,51 +18,57 @@ export default async function AccountPage() {
   const onWaitlist = await isOnWaitlist();
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title={`היי ${session?.full_name}`} />
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col p-6">
+      <BsdBar />
+      <BrandHero />
+      <h1 className="text-barber-teal mt-6 mb-8 text-center text-3xl font-bold">היי {session?.full_name}</h1>
 
-      <div className="flex flex-col gap-2">
+      <nav className="flex flex-col items-center gap-4 py-4">
         <Link
           href="/account/book"
-          className="bg-tropical-teal text-prussian-blue rounded p-3 text-center font-medium"
+          className="bg-barber-teal text-cream-text w-full rounded-full py-3 text-center text-xl font-bold"
         >
           קביעת תור
         </Link>
         <Link
           href="/account/appointments"
-          className="border-tropical-teal text-neon-ice rounded border p-3 text-center font-medium"
+          className="bg-barber-teal text-cream-text w-full rounded-full py-3 text-center text-xl font-bold"
         >
           התורים שלי
         </Link>
-      </div>
+      </nav>
 
       {onWaitlist && (
-        <div className="border-tropical-teal bg-space-indigo flex items-center justify-between rounded border p-3 text-sm">
-          <p className="text-neon-ice">את/ה ברשימת ההמתנה לתור פנוי</p>
+        <div className="border-barber-teal mt-4 flex items-center justify-between rounded-xl border bg-white p-4">
+          <p className="text-ink text-sm">את/ה ברשימת ההמתנה לתור פנוי</p>
           <LeaveWaitlistButton />
         </div>
       )}
 
       {announcements.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-neon-ice font-medium">הודעות מהספר</h2>
-          <ul className="flex flex-col gap-2">
+        <div className="mt-6 flex flex-col gap-3">
+          <h2 className="text-barber-teal font-bold">הודעות חשובות</h2>
+          <ul className="flex flex-col gap-3">
             {announcements.map((a) => (
-              <li key={a.id} className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
-                <p className="text-neon-ice font-medium">{a.title}</p>
-                <p className="whitespace-pre-wrap text-gray-300">{a.content}</p>
-                <p className="text-dusk-blue">{formatDate(a.published_at)}</p>
+              <li key={a.id} className="bg-barber-teal rounded-xl p-4">
+                <p className="text-cream-text font-bold">{a.title}</p>
+                <p className="text-cream-text/90 mt-1 whitespace-pre-wrap text-sm">{a.content}</p>
+                <p className="text-cream-text/60 mt-1 text-xs">{formatDate(a.published_at)}</p>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <form action={logoutAction}>
-        <button type="submit" className="text-neon-ice rounded border border-gray-500 px-4 py-2">
+      <form action={logoutAction} className="mt-8 flex justify-center">
+        <button
+          type="submit"
+          className="border-barber-teal text-barber-teal rounded-full border px-8 py-3 font-bold"
+        >
           התנתקות
         </button>
       </form>
+
     </main>
   );
 }

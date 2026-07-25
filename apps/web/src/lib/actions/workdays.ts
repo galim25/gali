@@ -5,7 +5,7 @@ import { prisma, Prisma } from "@barberbook/db";
 import { ISRAEL_TIME_ZONE, localDateToUtcMidnight, zonedTimeToUtc } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { notifyAppointmentCancelled } from "@/lib/notifyCustomer";
-import { notifyWaitlistOfExtendedHours } from "@/lib/actions/waitlist";
+import { notifyWaitlistOfExtendedHours, notifyWaitlistOfNewWorkDay } from "@/lib/actions/waitlist";
 
 export type WorkDayBreak = { id: string; starts_at: Date; ends_at: Date };
 export type WorkDayWithBreaks = {
@@ -13,6 +13,7 @@ export type WorkDayWithBreaks = {
   work_date: Date;
   starts_at: Date;
   ends_at: Date;
+  is_blocked: boolean;
   breaks: WorkDayBreak[];
 };
 
@@ -100,6 +101,24 @@ export async function updateWorkDayHoursAction(
 
   revalidatePath("/admin");
   revalidatePath(`/admin/day/${input.work_day_id}`);
+  return { success: true };
+}
+
+/**
+ * Blocks/unblocks a day from new customer self-service bookings (see
+ * `is_blocked` on the WorkDay model) — existing appointments are untouched,
+ * and the admin's own manual appointment creation still works while blocked.
+ */
+export async function setWorkDayBlockedAction(
+  work_day_id: string,
+  is_blocked: boolean,
+): Promise<CreateWorkDayResult> {
+  if (!(await requireAdminSession())) return { error: "אין הרשאה" };
+
+  await prisma.workDay.update({ where: { id: work_day_id }, data: { is_blocked } });
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/day/${work_day_id}`);
   return { success: true };
 }
 
@@ -205,6 +224,8 @@ export async function createWorkDayAction(input: CreateWorkDayInput): Promise<Cr
     }
     return { error: "לא ניתן היה לפתוח את היום, נסה/י שוב" };
   }
+
+  await notifyWaitlistOfNewWorkDay(new Date(`${input.work_date}T00:00:00Z`));
 
   revalidatePath("/admin");
   return { success: true };

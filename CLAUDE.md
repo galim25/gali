@@ -33,12 +33,12 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 
 ## ישויות עיקריות (ERD)
 
-`User` (role: customer/administrator) · `PasswordResetCode` · `Service` (duration_minutes, `is_child_service`) · `WorkDay` · `WorkBreak` · `BlockedTime` · `Appointment` (status: scheduled/cancelled, attendee_type: self/child/other) · `CancellationRequest` (status: pending/approved/rejected) · `BookingRequest` (status: pending/approved/rejected) · `AppSettings` (סינגלטון, `requires_approval`) · `WaitlistEntry` · `Notification` (type כולל גם `appointment_booked`/`waitlist_slot_available`/`booking_decision`, ו-`read_at`) · `Announcement` · `BlockedPhoneNumber`
+`User` (role: customer/administrator) · `PasswordResetCode` · `Service` (duration_minutes, `is_child_service`) · `WorkDay` (`is_blocked` — ראו למטה) · `WorkBreak` · `BlockedTime` · `Appointment` (status: scheduled/cancelled, attendee_type: self/child/other) · `CancellationRequest` (status: pending/approved/rejected) · `BookingRequest` (status: pending/approved/rejected) · `AppSettings` (סינגלטון, `requires_approval`) · `WaitlistEntry` · `Notification` (type כולל גם `appointment_booked`/`waitlist_slot_available`/`booking_decision`, ו-`read_at`) · `Announcement` · `BlockedPhoneNumber`
 
 הערות מודל חשובות:
 - `Appointment.booked_by_user_id` אופציונלי — תור ידני שהספר קובע יכול להתקיים בלי חשבון משתמש מקושר.
 - אין ישות `Child` נפרדת — פרטי הילד נשמרים ברמת התור (`attendee_name`, `attendee_type`).
-- **שתי פעולות נפרדות ושונות על תור/יום, אל תתבלבלו ביניהן:** "ביטול תור בודד" (`cancelAppointmentAction`) הוא soft — רק מחליף `status` ל-`cancelled`, הרשומה נשארת. "מחיקת היסטוריה" (`deleteWorkDayAction`/`deleteAllWorkDaysAction`) היא hard delete אמיתי — מחיקה מלאה, לא שמירה בארכיון, מסתמכת על ה-cascade בסכימה.
+- **שלוש פעולות נפרדות ושונות על תור/יום, אל תתבלבלו ביניהן:** "ביטול תור בודד" (`cancelAppointmentAction`) הוא soft — רק מחליף `status` ל-`cancelled`, הרשומה נשארת. "מחיקת היסטוריה" (`deleteWorkDayAction`/`deleteAllWorkDaysAction`) היא hard delete אמיתי — מחיקה מלאה, לא שמירה בארכיון, מסתמכת על ה-cascade בסכימה. "חסימת יום" (`WorkDay.is_blocked`, `setWorkDayBlockedAction`, 2026-07-26) לא מוחקת ולא מבטלת כלום — רק חוסמת קביעה/שינוי תור **חדשים** של לקוחות לאותו יום; הפיכה לגמרי (טוגל).
 - לכל תור יכולה להיות בקשת ביטול פעילה אחת בו־זמנית, ולכל היותר בקשת תור (`BookingRequest`) אחת (נוצרת רק כשהתור נקבע בזמן שהמדיניות "דורש אישור" דלוקה).
 - `BookingRequest` אינה "כוונה" — ה-`Appointment` הנלווה נוצר מיד עם סטטוס `scheduled` ותופס את השעה ביומן מרגע הבקשה; דחייה משנה את הסטטוס ל-`cancelled` ומשחררת את השעה, אישור לא נוגע בתור כלל.
 - `AppSettings` היא שורה יחידה קבועה (`id = "singleton"`, ראו `settings.ts`'s get-or-create) — לא טבלת key-value כללית; אם יתווספו הגדרות גלובליות נוספות, כנראה עדיף עמודות נוספות לאותה שורה.
@@ -53,6 +53,7 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 | תספורת ילד | 10 דק' |
 | הסרת שיער בלייזר | 10 דק' |
 | חלאקה | 15 דק' |
+| תספורת מבוגר + טיפול לייזר | 20 דק' |
 
 ## חוקי עסק קריטיים
 
@@ -73,36 +74,57 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 
 ## עיצוב (Design System)
 
-מסמכי מקור: אין קובץ עיצוב נפרד — הכללים כאן הם המקור היחיד, נקבעו בשיחה עם המשתמשת ב-2026-07-19.
+מסמכי מקור: אין קובץ עיצוב נפרד — הכללים כאן הם המקור היחיד. הבסיס נקבע בשיחה עם המשתמשת ב-2026-07-19; **ב-2026-07-21 נוסף ערכת נושא בהירה חדשה למסכי הלקוח**, מבוססת על קובץ פיגמה שהמשתמשת בנתה ("Hair Salon | Barber Shop | Salon | App UI Design Template (Community)" — תבנית קהילתית שהיא התאימה עם לוגו "Yossi Barber" אמיתי; שאר התוכן בה היה placeholder ולא הועתק כמות שהוא).
+
+**ב-2026-07-25 האפליקציה אוחדה לערכת נושא בהירה אחת גלובלית** — עד אז `/admin` היה על ערכת נושא כהה נפרדת ומכוונת (תועד כאן בעבר כ"שתי ערכות נושא במקביל, לא אחת שהוחלפה"); זה בוטל. הסיבה: לוגו חדש שהמשתמשת סיפקה (ראו "לוגו" למטה) מבוסס שחור+זהב על רקע בהיר, ולא היה קריא על הרקע הכהה של `/admin` — ובמקום לתחזק שתי ערכות נפרדות רק כדי לפתור את זה, כל `/admin` עבר לאותה ערכת נושא בהירה שכבר הייתה קיימת במסכי הלקוח (ראו "פלטת צבעים" למטה). טוקני הצבע הכהים (`prussian-blue`/`space-indigo`/`dusk-blue`/`tropical-teal`/`neon-ice`) הוסרו לגמרי מ-`globals.css` ומכל הקוד.
+
+**היחיד שנשאר בהיר-מסיבה-נפרדת ולא קשור למיתוג:** עמודי הדפסה/ייצוא (`admin/day/[id]/print`, `admin/print-all`) — נשארים `bg-white`/`text-gray-*` פשוטים, לא טוקני `cream`/`barber-teal`, כי הם מיועדים להדפסה/PDF בפועל ולא חלק מהעיצוב הממותג.
+
+### חיבור לפיגמה
+
+- טוקן API אישי שמור ב-`.env` בתור `FIGMA_ACCESS_TOKEN` (לא ב-git). קובץ הייחוס: file key `RLOrFLhV7pQErRxAUiA3do`.
+- משיכת מסכים: `GET https://api.figma.com/v1/files/{key}?depth=2` לרשימת frames, ואז `GET https://api.figma.com/v1/images/{key}?ids=<node-ids>&format=png` לתמונות. אין סקריפט קבוע לזה עדיין — נעשה אד-הוק דרך `curl` בשיחה מ-2026-07-21; אם זה יקרה שוב בתדירות, שווה להפוך לסקריפט ב-`scripts/`.
 
 ### לוגו
 
-- קומפוננטה: `<Logo />` ב-`apps/web/src/components/Logo.tsx`.
-- קובץ המקור: `apps/web/public/logo.svg`.
-- לעולם לא לשנות פרופורציות (הרוחב תמיד `auto` לפי גובה), לא להוסיף צללים.
-- גודל מינימלי: 24px.
-- מרווח סביב הלוגו: פרמטר `padding` אופציונלי (ברירת מחדל: חצי מהגובה). לשימוש ה-hero הגלובלי (ראו `<PageHeader />`) המרווח מוקטן במפורש ל-16px.
-- **הלוגו הוא כותרת-העל (hero) של כל עמוד — ממורכז, גובה 160px, מעל כל שאר התוכן.** זה מחליף כלל קודם ("תמיד בצד שמאל") שבוטל.
-- מתחת ללוגו, בצד ימין (`text-right`): המילה **"בס"ד"**, באותו גודל/צבע/משקל כמו טקסט הכותרת/ברכה שמתחתיה.
-- קומפוננטת `<PageHeader title?: string />` (`apps/web/src/components/PageHeader.tsx`) עוטפת את כל זה — כל עמוד אמור להשתמש בה בראש ה-`<main>` שלו במקום לשכפל את המבנה.
+**היסטוריה (חשוב להבין כדי לא להתבלבל בין גרסאות ישנות בקוד/מסמכים ישנים):** היה לוגו ישן (`logo.svg`, JPEG עטוף ב-SVG, קומפוננטת `<Logo/>`) שהוצג בתחתית העמוד בתוך תיבה ממוסגרת. ב-2026-07-25 המשתמשת סיפקה לוגו חדש (`~/winmux-drops/new logo1.svg` — קובץ Figma שכלל את האמנות **וגם** רקע גרדיאנט אפוי-בפנים + מסגרת). אחרי כמה סבבי איטרציה (ראו היסטוריית git אם צריך את הפרטים), המצב הנוכחי (2026-07-26) הוא:
 
-### פלטת צבעים (Tailwind theme tokens, `globals.css`)
+- **קובץ אחד משותף לכל האפליקציה:** `apps/web/public/logo-cropped.svg` — האמנות בלבד (חתוכה מתוך `new logo1.svg`, בלי הרקע/הגרדיאנט/המסגרת שהיו אפויים בפנים המקור, עם רקע שקוף). זה **הלוגו היחיד** שקיים כרגע בקוד — `logo.svg` הישן, קומפוננטת `<Logo/>`, `admin-logo.svg` (הגרסה המרובעת עם הגרדיאנט אפוי-בפנים) ו-`admin-logo-cropped.svg` (שם ביניים) **נמחקו כולם**. אם מישהו מחליף את `logo-cropped.svg` אי-פעם, לוודא שהקובץ החדש כבר בעל רקע שקוף (לא לחזור לטעות של רקע אפוי-בפנים) — אין עוד קיצוץ viewBox ידני נדרש מעבר לזה שכבר בוצע.
+- **מוצג דרך שני קומפוננטים כמעט-זהים (לא אוחדו לאחד, כי הם חיים בשני חלקים שונים של העץ):**
+  - **מסכי לקוח** — `<BrandHero />` (`apps/web/src/components/BrandHero.tsx`).
+  - **`/admin`** — `<AdminBrandHero />` (`apps/web/src/components/AdminBrandHero.tsx`), מוזרם דרך ה-`topBanner` prop של `<PageHeader/>` (ראו למטה) — לא מוכנס ישירות ב-JSX של כל עמוד.
+  - שניהם: גרדיאנט `from-barber-teal/50 to-cream` (טורקיז למעלה, נמס לקרם למטה — נבנה ב-Tailwind, לא חלק מהקובץ), `-mx-6` לפריסה מלאה לרוחב, **בלי** תיבה/מסגרת סביב הלוגו (רק התמונה עצמה על הגרדיאנט), גובה קבוע `90px` ורוחב `auto`.
+- **מיקום: בראש העמוד** (לא בתחתית — שונה מהעיצוב המקורי מ-2026-07-21/25) — מיד אחרי `<BsdBar/>` ולפני הכותרת/תוכן העמוד. אצל הלקוח מוכנס ידנית ב-JSX (`<BsdBar/>` ואז `<BrandHero/>` ואז ה-`<h1>`); ב-`/admin` מוכנס אוטומטית על ידי `<PageHeader topBanner={<AdminBrandHero/>} title=.../>` (ראו הסבר `PageHeader` למטה) — **אין** יותר `mt-auto`/מיקום בתחתית, וממילא `flex flex-col` על ה-`<main>` כבר לא קריטי לצורך הזה (נשאר בכל זאת כמוסכמת layout).
+- כל עמוד לקוח חדש **חייב** לכלול `<BrandHero />` מיד אחרי `<BsdBar/>`. כל עמוד `/admin` חדש **חייב** להעביר `topBanner={<AdminBrandHero/>}` ל-`<PageHeader/>`.
+
+### "בס"ד" — `BsdBar` (כל האפליקציה)
+
+בכל עמוד באפליקציה (מסכי לקוח **וגם** `/admin`), "בס"ד" מוצג דרך `<BsdBar />` (`apps/web/src/components/BsdBar.tsx`) — רכיב אחד משותף, לא כפול. ממוקם כילד ראשון תחת ה-`<main>`, `sticky top-0`, כך שנשאר גלוי תמיד גם בגלילה, מעל שאר התוכן. שובר את ה-`p-6` של ה-`<main>` עם `-mx-6 -mt-6` כדי להיצמד לרוחב וגובה מלאים. כל עמוד לקוח חדש **חייב** לכלול אותו כילד הראשון תחת ה-`<main>` (ואז `<BrandHero/>` מיד אחריו, ראו למעלה). ב-`/admin` הוא מגיע דרך `<PageHeader title?: string; topBanner?: ReactNode />` (`apps/web/src/components/PageHeader.tsx`), שמחזיר `<><BsdBar/>{topBanner}{title && <h1>...</h1>}</>` כ-fragment (לא עטוף ב-`div` נוסף) — כדי שה-`-mx-6 -mt-6` של `BsdBar` יעבוד נכון גם כש-`PageHeader` הוא הילד הראשון תחת ה-`<main>` של עמוד `/admin`. ה-`topBanner` הוא סלוט אופציונלי בין `BsdBar` לכותרת — כרגע כל 9 עמודי ה-`/admin` מעבירים `<AdminBrandHero/>`.
+
+### פלטת צבעים (אפליקציה כולה, 2026-07-21, מפיגמה)
 
 | טוקן | HEX | תפקיד |
 |---|---|---|
-| `prussian-blue` | `#0b132b` | רקע כהה גלובלי (`body`, כל `<main>`) |
-| `space-indigo` | `#1c2541` | רקע כרטיסים/משטחים מורמים |
-| `dusk-blue` | `#3a506b` | טקסט משני/עמום (תאריכים, timestamps) |
-| `tropical-teal` | `#5bc0be` | CTA ראשי (רקע כפתור), מסגרות |
-| `neon-ice` | `#6fffe9` | טקסט ראשי/כותרות על רקע כהה |
+| `cream` | `#fdf8f0` | רקע בהיר גלובלי (`body`, כל `<main>` באפליקציה) |
+| `barber-teal` | `#508186` | צבע מותג ראשי — כותרות, מסגרות, כפתורים, קישורים |
+| `barber-teal-dark` | `#3d666a` | גוון כהה יותר של הטורקיז, לשימוש עתידי (hover/pressed) — לא בשימוש פעיל עדיין |
+| `ink` | `#1f2421` | טקסט ראשי כהה |
+| `slate-muted` | `#7c7c7c` | טקסט משני/placeholder |
+| `cream-text` | `#fffcf7` | טקסט לבן-שבור על רקע `barber-teal` מלא (כפתורים) |
 
-**ערכת נושא כהה קבועה** — לא מתחלף אוטומטית לפי `prefers-color-scheme`. אין בפלטה גוון בהיר/ניטרלי, אז אין "מצב בהיר" חלופי כרגע.
+**מוסכמות רכיבים (כל האפליקציה, כולל `/admin` מ-2026-07-25):** שדות טקסט — `rounded-xl` (לא `rounded` רגיל), מסגרת `border-barber-teal`, רקע לבן. כפתורים ראשיים — `rounded-full` (פיל מלא), רקע `bg-barber-teal`, טקסט `text-cream-text`. כפתורים משניים — `rounded-full` עם מסגרת בלבד (`border-barber-teal text-barber-teal`, ללא מילוי). כרטיסי מידע (הודעות, תורים) — `rounded-xl border-barber-teal bg-white`. אלו נלקחו ישירות מ-corner-radius שנמדדו בקובץ הפיגמה (כ-10px לשדות, ~200px+ לכפתורים — בפועל pill מלא בכל גובה סביר). **כפתורי מחיקה/הרס** (מחיקת יום עבודה, הסרת חסימה וכו') חורגים מהצבע הזה בכוונה — נשארים `text-red-600`/`border-red-600` סמנטית אדומים, אבל עם אותה צורה (`rounded-full` לכפתור בודד, `rounded-xl` לפאנל אישור עם כמה כפתורים).
 
-**חריג מכוון:** עמודי הדפסה/ייצוא (`admin/day/[id]/print`, `admin/print-all`) **נשארים בהירים** (רקע לבן, טקסט כהה) בכוונה — הם מיועדים להדפסה/PDF בפועל, ורקע כהה שם מבזבז דיו ופוגע בקריאות על נייר.
+### לוח שנה — שני מימושים נפרדים (`account/book` ו-`/admin`), אל תתבלבלו ביניהם
+
+**מסך לקוח (`DateCalendar`, בתוך `account/book/page.tsx`, לא מופרד לקובץ נפרד — קטן מספיק כרגע):** רשת חודשית אמיתית (RTL, יום ראשון בצד ימין), רק תאריכים שקיימים ב-`getOpenDates()` ניתנים ללחיצה (עיגול טורקיז מלא), השאר מוצגים דהויים ולא לחיצים. ניווט בין חודשים מוגבל לחודשים שבהם יש בפועל תאריך פתוח אחד לפחות (נגזר מ-`dates`, לא כל חודש קלנדרי) — כדי שלא יהיה אפשר "לתעות" בחודשים ריקים. שעות פנויות (`slot` step) עברו מגריד מלבנים לכפתורי-פיל עגולים (`rounded-full`).
+
+**מסך אדמין (`AdminDateCalendar`, בתוך `apps/web/src/app/admin/OpenWorkDayForm.tsx`, ב"פתיחת יום עבודה חדש") — אותו עיצוב ויזואלי, לוגיקה הפוכה (2026-07-26):** כאן הספר הוא זה שפותח יום, אז **כל** תאריך עתידי לחיץ (לא רק רשימה סגורה), חוץ מתאריכי עבר ותאריכים שכבר קיימים כיום עבודה פתוח (מוצגים דהויים/disabled). ניווט חודשים חופשי קדימה, חסום אחורה מהחודש הנוכחי. **תבנית UI חשובה שכדאי לחזור עליה בעתיד:** הלוח לא מוצג תמיד פתוח — יש שדה קומפקטי (נראה כמו `<input>` רגיל, מציג את התאריך שנבחר או "בחרו תאריך") שבלחיצה עליו פותח את הלוח כ"פופאפ" מתחתיו (`calendarOpen` state); בחירת תאריך סוגרת אותו חזרה. זה נמנע מלוח שנה תפוס-שטח שתמיד גלוי בעמוד.
+
+**מוסכמת כותרות (מ-2026-07-26):** כל כותרת עמוד (`<h1>`, כולל `PageHeader`'s title ב-`/admin`) ממורכזת (`text-center`) — כולל מקרים עם כפתור "חזרה" לצידה (`forgot-password`/`reset-password`): במקרה כזה יש `div` מרווח שקוף (`w-[22px]`, תואם לרוחב ה-`BackIcon`) בצד הנגדי לכפתור, כדי שהכותרת (`flex-1 text-center`) תהיה ממורכזת אמיתית ביחס לרוחב כל השורה, לא רק ביחס למקום הפנוי שנשאר לה.
 
 ### פונט
 
-- **Rubik** (Google Fonts, `next/font/google`, subsets `hebrew`+`latin`), נטען גלובלית ב-`app/layout.tsx` על תגית ה-`<html>`. אין להוסיף אותו שוב בעמודים בודדים.
+- **Rubik** (Google Fonts, `next/font/google`, subsets `hebrew`+`latin`), נטען גלובלית ב-`app/layout.tsx` על תגית ה-`<html>`. אין להוסיף אותו שוב בעמודים בודדים. משמש את כל האפליקציה. (חריג ידוע: `app/(auth)/login/page.tsx` דורס אותו מקומית ל-`Heebo` — לא קשור לאיחוד ה-2026-07-25, סטייה ישנה יותר שלא טופלה כאן.)
 
 ## מפורשות מחוץ לסקופ (Out of Scope)
 
@@ -136,12 +158,13 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 - **מדיניות "דורש אישור"** (US-018, `AppSettings`, `apps/web/src/lib/actions/settings.ts`) — מתג יחיד וגלובלי (`getRequiresApproval()`/`setRequiresApprovalAction()`) שנקרא גם בקביעת תור וגם בבקשת ביטול; לא לפי יום/לקוח/שירות. מוגדר ב-`/admin/settings` (`ApprovalToggle`). ברירת מחדל: כבוי.
 - **בקשות תורים** (US-019/US-020, `BookingRequest`) — כשהמדיניות דלוקה, `bookAppointmentAction` יוצרת את ה-`Appointment` (סטטוס `scheduled`, תופס את השעה מיד) **וגם** `BookingRequest` (`pending`) לצידו, ומחזירה `pendingApproval: true` ללקוח (מסך "הבקשה שלך נשלחה לאישור הספר" ב-`account/book`) במקום את התראת "נקבע תור חדש" הרגילה למנהל. הספר מאשר/דוחה ב-`/admin/booking-requests` (badge ב-`/admin`, `getPendingBookingRequestCount()`): אישור לא נוגע בתור; דחייה הופכת אותו ל-`cancelled` (ומפעילה `notifyWaitlistOfFreedSlot` אם השעה עדיין עתידית) ושולחת ללקוח הודעת `booking_decision`.
 - **התראות מנהל** (US-021, `notifyAdmin.ts`, `adminNotifications.ts`, `/admin/notifications`) — כשהמדיניות כבויה, כל תור שלקוח קובע לעצמו (`notifyAdminsOfNewBooking`) יוצר `Notification` מסוג `appointment_booked` לכל מנהל (בתוך האפליקציה בלבד, בלי SMS); תור ידני שהספר קובע לא מפעיל את זה. badge ב-`/admin` סופר לפי `read_at IS NULL`; `markAdminNotificationsReadAction` היא "סמן הכל כנקרא" (bulk `updateMany`) — אין סימון פר-שורה.
-- **רשימת המתנה** (US-022–US-025, `WaitlistEntry`, `apps/web/src/lib/actions/waitlist.ts`) — כללית, לא לפי תאריך/שירות; `user_id` הוא `@unique` אז הצטרפות חוזרת היא no-op. `joinWaitlistAction`/`leaveWaitlistAction`/`isOnWaitlist` בצד הלקוח (`account/book`, `LeaveWaitlistButton` ב-`/account`); `getWaitlistEntries`/`removeWaitlistEntryAction` בצד הספר (`/admin/waitlist`) — הסרה ידנית, בלי הודעה ללקוח. שתי טריגרים נפרדים להודעה (`type: waitlist_slot_available`, דרך helper משותף `notifyAllWaitlistEntries`): (1) `notifyWaitlistOfFreedSlot` — כל ביטול תור עתידי (ביטול ישיר ע"י הספר, אישור/ביטול-מיידי של בקשת ביטול, דחיית בקשת תור); (2) `notifyWaitlistOfExtendedHours` — רק כש-`updateWorkDayHoursAction` **מרחיבה** יום שכבר פתוח (טווח חדש רחב מהישן), לא כשנפתח יום חדש לגמרי (`createWorkDayAction` לא נוגע ברשימת ההמתנה).
+- **רשימת המתנה** (US-022–US-025, `WaitlistEntry`, `apps/web/src/lib/actions/waitlist.ts`) — כללית, לא לפי תאריך/שירות; `user_id` הוא `@unique` אז הצטרפות חוזרת היא no-op. `joinWaitlistAction`/`leaveWaitlistAction`/`isOnWaitlist` בצד הלקוח (`account/book`, `LeaveWaitlistButton` ב-`/account`); `getWaitlistEntries`/`removeWaitlistEntryAction` בצד הספר (`/admin/waitlist`) — הסרה ידנית, בלי הודעה ללקוח. **שלושה** טריגרים נפרדים להודעה (`type: waitlist_slot_available`, דרך helper משותף `notifyAllWaitlistEntries`): (1) `notifyWaitlistOfFreedSlot` — כל ביטול תור עתידי (ביטול ישיר ע"י הספר, אישור/ביטול-מיידי של בקשת ביטול, דחיית בקשת תור); (2) `notifyWaitlistOfExtendedHours` — כש-`updateWorkDayHoursAction` **מרחיבה** יום שכבר פתוח (טווח חדש רחב מהישן); (3) `notifyWaitlistOfNewWorkDay` — כש-`createWorkDayAction` פותחת יום חדש **לגמרי** (תוקן 2026-07-26 — עד אז זה היה חסר: לקוח שהצטרף לרשימת ההמתנה כש**אין אף יום פתוח** מעולם לא קיבל התראה, כי פתיחת היום הראשון אינה "הרחבה" של כלום). ב-`account/book` מצב "אין ימים פתוחים" מנוסח כ"התרע/י לי כשייפתחו תאריכים לקביעת תורים" (לא "רשימת המתנה" גנרית) — אותו מנגנון בדיוק, רק ניסוח ממוקד למקרה הזה.
+- **חסימת יום מקביעת תורים חדשים** (`WorkDay.is_blocked`, נוסף 2026-07-26) — טוגל ב-`/admin/day/[id]` (`BlockDayToggle`) שחוסם יום ספציפי מקביעה/שינוי תור **של לקוחות** בלבד — התורים הקיימים לא נפגעים, וקביעת תור ידנית ע"י הספר (`CreateManualAppointmentForm`) עדיין עובדת. נאכף בשלוש שכבות: `getOpenDates()` (לא מציגה יום חסום ללקוח בכלל), `bookAppointmentAction`/`rescheduleAppointmentAction` (זורקות `DAY_BLOCKED` כרשת ביטחון גם אם המסך אצל הלקוח לא עדכני). badge "חסום" מוצג ליד היום ברשימת "ימי עבודה פתוחים" ב-`/admin`. שונה במפורש מ-`BlockedTime` (חוסם טווח שעות בתוך יום, לא את כל היום) ומ"מחיקת יום" (hard delete בלתי הפיך) — שלוש דרכים נפרדות ושונות לגמרי לטפל ביום, אל תתבלבלו ביניהן.
 - **חסימת שעות שעברו** (FR-28) — `getSlotsForDate` מסננת שעות עם `d < now` לפני שהן מוצגות ללקוח; `bookAppointmentAction`/`rescheduleAppointmentAction` בודקות שוב `starts_at < new Date()` בתוך הטרנזקציה עצמה (זורקות `PAST_SLOT`) כרשת ביטחון למקרה שהמסך אצל הלקוח לא עדכני. הבדיקה **לא** בתוך `findAvailableSlots`/`isSlotAvailable` עצמן (`apps/web/src/lib/availability.ts`) — הן נשארות טהורות/דטרמיניסטיות ומכוסות ב-11 הטסטים הקיימים; הסינון לפי "עכשיו" הוא רק בשכבת ה-action.
 - **הודעות כלליות** (US-009, `Announcement`) — הספר מפרסם ב-`/admin/announcements`; מוצגות ללקוח ב-`/account` (הכי חדשה קודם). ללא SMS/Notification per-customer — ה-PRD דורש רק תצוגה באפליקציה, לא שידור טקסטים.
 - **`apps/worker`** — לא עוד placeholder: `node-cron` (כבר היה תלות מוצהרת מ-Phase 1) מריץ כל דקה `sendDueReminders()` (`apps/worker/src/reminders.ts`) שמאתר תורים `scheduled` עם חשבון מקושר שמתחילים בתוך `APPOINTMENT_REMINDER_LEAD_MINUTES` (120 דק', `packages/shared`) וללא `Notification` מסוג `appointment_reminder` קיים עדיין — האידמפוטנטיות מסתמכת רק על הבדיקה הזו (אין דגל "תזכורת נשלחה" נפרד בסכימה). נבדק ידנית קצה-לקצה (יצירת תור זמני 30 דק' קדימה, הרצה כפולה, מחיקה) — נשלחת פעם אחת בלבד. השרת דורש `apps/worker/.env` (מקומי, לא ב-git כמו שאר קבצי ה-.env) עם `DATABASE_URL`; `pnpm --filter @barberbook/worker dev` (או `pnpm worker` מהשורש) מריץ אותו עם `--env-file=.env`.
 - `formatIsraelDate`/`formatIsraelTime` הועברו מ-`apps/web/src/lib/notifyCustomer.ts` ל-`packages/shared` כדי ש-`apps/worker` (חבילה נפרדת, בלי גישה ל-`apps/web`) יוכל להשתמש בהן גם כן.
 
-**טרם קיים קוד עבורו:** שום דבר מה-PRD הנוכחי. הכל ב-US-001 עד US-025 ו-FR-1 עד FR-35 ממומש.
+**טרם קיים קוד עבורו:** שום דבר מה-PRD הנוכחי. הכל ב-US-001 עד US-025 ו-FR-1 עד FR-35 ממומש. **חסימת יום מקביעת תורים** (ראו למעלה) היא תוספת מעבר ל-PRD המקורי — לא ממוספרת כ-US, נוספה לפי בקשה ישירה של המשתמשת ב-2026-07-26.
 
 **הערת בדיקה:** US-018 עד US-023 (מדיניות אישור, בקשות תורים, התראות מנהל, הצטרפות/ניהול רשימת המתנה) נבדקו ידנית בדפדפן ע"י המשתמשת ב-2026-07-20/21. US-024 (התפנות תור) עבד בפועל באותה בדיקה כתופעת לוואי (בקשת תור שנדחתה שחררה שעה). חסימת שעות שעברו (FR-28) ו-US-025 (הודעת הרחבת שעות) נכתבו אחרי אותה בדיקה — עברו `tsc`, את 11 הטסטים הקיימים (`pnpm test`), ואימות לוגיקה ידני מול הסכימה/DB, אבל **לא עברו עדיין בדיקה ידנית בדפדפן** על ה-flow המלא (למשל: לקוח שרואה בפועל ש-09:00 נעלם מרשימת השעות אחרי שהשעה עברה; לקוח ברשימת המתנה שמקבל בפועל SMS/Notification אחרי שהספר הרחיב יום).

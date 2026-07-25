@@ -4,7 +4,8 @@ import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { RescheduleButton } from "./RescheduleButton";
 import { RequestCancellationButton } from "./RequestCancellationButton";
-import { PageHeader } from "@/components/PageHeader";
+import { BrandHero } from "@/components/BrandHero";
+import { BsdBar } from "@/components/BsdBar";
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("he-IL", {
@@ -32,28 +33,33 @@ export default async function AppointmentsPage() {
   });
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title="התורים שלי" />
-      <div className="flex justify-end">
-        <Link href="/account/book" className="bg-tropical-teal text-prussian-blue rounded px-3 py-2 text-sm font-medium">
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col p-6">
+      <BsdBar />
+      <BrandHero />
+      <h1 className="text-barber-teal mt-6 mb-6 text-center text-3xl font-bold">התורים שלי</h1>
+      <div className="mb-4 flex justify-end">
+        <Link
+          href="/account/book"
+          className="bg-barber-teal text-cream-text rounded-full px-4 py-2 text-sm font-bold"
+        >
           תור חדש
         </Link>
       </div>
 
-      {appointments.length === 0 && <p className="text-gray-400">אין לך תורים קרובים.</p>}
+      {appointments.length === 0 && <p className="text-slate-muted">אין לך תורים קרובים.</p>}
 
       <ul className="flex flex-col gap-3">
         {appointments.map((a) => (
-          <li key={a.id} className="border-tropical-teal bg-space-indigo rounded border p-3">
-            <p className="text-neon-ice font-medium">{a.service.name}</p>
-            <p className="text-sm text-gray-300">{formatDateTime(a.starts_at)}</p>
+          <li key={a.id} className="border-barber-teal rounded-xl border bg-white p-4">
+            <p className="text-ink font-bold">{a.service.name}</p>
+            <p className="text-slate-muted text-sm">{formatDateTime(a.starts_at)}</p>
             {a.attendee_type === "child" && (
-              <p className="text-sm text-gray-400">עבור: {a.attendee_name}</p>
+              <p className="text-slate-muted text-sm">עבור: {a.attendee_name}</p>
             )}
             {a.booking_request?.status === "pending" ? (
-              <p className="mt-2 text-sm text-gray-400">התור ממתין לאישור הספר</p>
+              <p className="text-slate-muted mt-2 text-sm">התור ממתין לאישור הספר</p>
             ) : a.cancellation_request?.status === "pending" ? (
-              <p className="mt-2 text-sm text-gray-400">בקשת ביטול נשלחה — ממתינה לאישור הספר</p>
+              <p className="text-slate-muted mt-2 text-sm">בקשת ביטול נשלחה — ממתינה לאישור הספר</p>
             ) : (
               <div className="mt-2 flex flex-col gap-2">
                 <RescheduleButton appointmentId={a.id} serviceId={a.service.id} />
@@ -64,9 +70,10 @@ export default async function AppointmentsPage() {
         ))}
       </ul>
 
-      <Link href="/account" className="text-neon-ice text-sm underline">
+      <Link href="/account" className="text-barber-teal mt-6 self-start text-sm font-medium">
         חזרה לאזור האישי
       </Link>
+
     </main>
   );
 }

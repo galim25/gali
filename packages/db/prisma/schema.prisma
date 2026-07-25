@@ -120,6 +120,13 @@ model WorkDay {
   work_date   DateTime @db.Date
   starts_at   DateTime
   ends_at     DateTime
+  /// Blocks the whole day from new customer self-service bookings/reschedules
+  /// (getOpenDates excludes it, bookAppointmentAction/rescheduleAppointmentAction
+  /// reject it) without touching anything already scheduled — distinct from
+  /// BlockedTime (a specific hour range within an otherwise-bookable day) and
+  /// from deleting the day (hard delete, irreversible). The admin's own manual
+  /// appointment creation is unaffected — this only blocks customer self-service.
+  is_blocked  Boolean  @default(false)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 

@@ -50,24 +50,24 @@ export function AnnouncementItem({
 
   if (editing) {
     return (
-      <li className="border-tropical-teal bg-space-indigo flex flex-col gap-2 rounded border p-3 text-sm">
+      <li className="border-barber-teal bg-white flex flex-col gap-2 rounded-xl border p-3 text-sm">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="border-tropical-teal bg-prussian-blue text-neon-ice rounded border p-2"
+          className="border-barber-teal bg-white text-ink rounded-xl border p-2"
         />
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
-          className="border-tropical-teal bg-prussian-blue text-neon-ice rounded border p-2"
+          className="border-barber-teal bg-white text-ink rounded-xl border p-2"
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-3">
           <button
             onClick={save}
             disabled={pending}
-            className="bg-tropical-teal text-prussian-blue rounded px-3 py-1 text-sm font-medium disabled:opacity-50"
+            className="bg-barber-teal text-cream-text rounded-full px-3 py-1 text-sm font-bold disabled:opacity-50"
           >
             {pending ? "שומר..." : "שמירה"}
           </button>
@@ -78,7 +78,7 @@ export function AnnouncementItem({
               setContent(announcement.content);
               setError(undefined);
             }}
-            className="text-neon-ice rounded border border-gray-500 px-3 py-1 text-sm"
+            className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
           >
             ביטול
           </button>
@@ -88,16 +88,16 @@ export function AnnouncementItem({
   }
 
   return (
-    <li className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
-      <p className="text-neon-ice font-medium">{announcement.title}</p>
-      <p className="whitespace-pre-wrap text-gray-300">{announcement.content}</p>
-      <p className="text-gray-400">{publishedAt}</p>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+    <li className="border-barber-teal bg-white rounded-xl border p-3 text-sm">
+      <p className="text-ink font-bold">{announcement.title}</p>
+      <p className="whitespace-pre-wrap text-slate-muted">{announcement.content}</p>
+      <p className="text-slate-muted">{publishedAt}</p>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="mt-2 flex gap-3">
-        <button onClick={() => setEditing(true)} className="text-neon-ice text-sm underline">
+        <button onClick={() => setEditing(true)} className="text-barber-teal text-sm underline">
           עריכה
         </button>
-        <button onClick={del} disabled={pending} className="text-sm text-red-400 underline disabled:opacity-50">
+        <button onClick={del} disabled={pending} className="text-sm text-red-600 underline disabled:opacity-50">
           {pending ? "מוחק..." : "מחיקה"}
         </button>
       </div>

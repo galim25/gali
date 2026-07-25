@@ -16,7 +16,7 @@ export function RemoveWaitlistEntryButton({ id }: { id: string }) {
   }
 
   return (
-    <button onClick={remove} disabled={pending} className="text-sm text-red-400 underline disabled:opacity-50">
+    <button onClick={remove} disabled={pending} className="text-sm text-red-600 underline disabled:opacity-50">
       {pending ? "מסיר..." : "הסרה מהרשימה"}
     </button>
   );

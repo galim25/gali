@@ -10,7 +10,9 @@ import { MoveAppointmentButton } from "./MoveAppointmentButton";
 import { CancelAppointmentButton } from "./CancelAppointmentButton";
 import { CreateManualAppointmentForm } from "./CreateManualAppointmentForm";
 import { DeleteWorkDayButton } from "./DeleteWorkDayButton";
+import { BlockDayToggle } from "./BlockDayToggle";
 import { PageHeader } from "@/components/PageHeader";
+import { AdminBrandHero } from "@/components/AdminBrandHero";
 
 function formatHHMM(d: Date) {
   return d.toLocaleTimeString("en-GB", {
@@ -47,20 +49,22 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
   );
 
   return (
-    <main dir="rtl" className="bg-prussian-blue mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
-      <PageHeader title={formatWorkDate(workDay.work_date)} />
+    <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
+      <PageHeader title={formatWorkDate(workDay.work_date)} topBanner={<AdminBrandHero />} />
       <div className="flex justify-end">
-        <Link href="/admin" className="text-neon-ice text-sm underline">
+        <Link href="/admin" className="text-barber-teal text-sm underline">
           חזרה לניהול
         </Link>
       </div>
 
       <div className="flex items-center justify-between">
-        <Link href={`/admin/day/${workDay.id}/print`} className="text-neon-ice text-sm underline">
+        <Link href={`/admin/day/${workDay.id}/print`} className="text-barber-teal text-sm underline">
           הדפסה / שמירה כ-PDF
         </Link>
         <DeleteWorkDayButton workDayId={workDay.id} />
       </div>
+
+      <BlockDayToggle workDayId={workDay.id} initialValue={workDay.is_blocked} />
 
       <EditHoursForm
         workDayId={workDay.id}
@@ -71,30 +75,33 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
       <CreateManualAppointmentForm workDayId={workDay.id} />
 
       <div className="flex flex-col gap-2">
-        <h2 className="text-neon-ice font-medium">לוח היום ({appointments.length} תורים)</h2>
+        <h2 className="text-ink font-bold">לוח היום ({appointments.length} תורים)</h2>
         <ul className="flex flex-col gap-1">
           {timeline.map((s, i) => {
             if (s.kind === "free") {
               return (
-                <li key={i} className="rounded p-2 text-sm text-gray-400">
+                <li key={i} className="rounded-xl p-2 text-sm text-slate-muted">
                   {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} · פנוי
                 </li>
               );
             }
             if (s.kind === "break" || s.kind === "blocked") {
               return (
-                <li key={i} className="border-dusk-blue rounded border p-2 text-sm text-gray-300">
+                <li
+                  key={i}
+                  className="border-barber-teal/40 bg-white rounded-xl border border-dashed p-2 text-sm text-slate-muted"
+                >
                   {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} ·{" "}
                   {s.kind === "break" ? "הפסקה" : "חסום"}
                 </li>
               );
             }
             return (
-              <li key={s.id} className="border-tropical-teal bg-space-indigo rounded border p-3 text-sm">
-                <p className="text-neon-ice font-medium">
+              <li key={s.id} className="border-barber-teal bg-white rounded-xl border p-3 text-sm">
+                <p className="text-ink font-bold">
                   {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} · {s.service_name}
                 </p>
-                <p className="text-gray-300">
+                <p className="text-slate-muted">
                   {s.customer_name}
                   {s.attendee_type === "child" && ` (עבור: ${s.attendee_name})`}
                   {!s.has_account && " · תור ידני"}
@@ -112,6 +119,7 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
           })}
         </ul>
       </div>
+
     </main>
   );
 }

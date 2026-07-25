@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { setRequiresApprovalAction } from "@/lib/actions/settings";
+import { setWorkDayBlockedAction } from "@/lib/actions/workdays";
 
-export function ApprovalToggle({ initialValue }: { initialValue: boolean }) {
+/**
+ * Blocks/unblocks this specific day from new customer self-service bookings
+ * (US ask, 2026-07-26) — separate from deleting the day (irreversible, wipes
+ * everything) and from BlockedTime (blocks one hour range, not the whole
+ * day). Existing appointments are untouched either way; the admin's own
+ * manual appointment creation still works while blocked.
+ */
+export function BlockDayToggle({ workDayId, initialValue }: { workDayId: string; initialValue: boolean }) {
   const router = useRouter();
   const [value, setValue] = useState(initialValue);
   const [pending, setPending] = useState(false);
@@ -14,7 +21,7 @@ export function ApprovalToggle({ initialValue }: { initialValue: boolean }) {
     const next = !value;
     setPending(true);
     setError(undefined);
-    const result = await setRequiresApprovalAction(next);
+    const result = await setWorkDayBlockedAction(workDayId, next);
     setPending(false);
     if (result.error) {
       setError(result.error);
@@ -28,11 +35,11 @@ export function ApprovalToggle({ initialValue }: { initialValue: boolean }) {
     <div className="border-barber-teal bg-white flex flex-col gap-2 rounded-xl border p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-ink font-bold">קביעה/ביטול תור דורשים אישור שלי</p>
+          <p className="text-ink font-bold">חסימת היום מקביעת תורים חדשים</p>
           <p className="text-sm text-slate-muted">
             {value
-              ? "דלוק — כל קביעת תור ובקשת ביטול ממתינות לאישור שלך."
-              : "כבוי — לקוחות קובעים ומבטלים תורים לבד, בלי שתצטרך לאשר."}
+              ? "חסום — לקוחות לא יכולים לקבוע או לשנות תור אליו ליום הזה. התורים הקיימים לא נפגעים."
+              : "פתוח — לקוחות יכולים לקבוע תורים ליום הזה כרגיל."}
           </p>
         </div>
         <button

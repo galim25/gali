@@ -54,30 +54,30 @@ export function MoveAppointmentButton({
 
   if (!open) {
     return (
-      <button onClick={start} className="text-neon-ice text-sm underline">
+      <button onClick={start} className="text-barber-teal text-sm underline">
         העברת התור לשעה אחרת
       </button>
     );
   }
 
   return (
-    <div className="border-tropical-teal mt-2 flex flex-col gap-2 rounded border p-3">
-      <p className="text-sm text-gray-300">בחרו שעה חדשה באותו יום:</p>
-      {slots.length === 0 && <p className="text-sm text-gray-400">אין שעות פנויות אחרות ביום זה.</p>}
+    <div className="border-barber-teal bg-white mt-2 flex flex-col gap-2 rounded-xl border p-3">
+      <p className="text-sm text-slate-muted">בחרו שעה חדשה באותו יום:</p>
+      {slots.length === 0 && <p className="text-sm text-slate-muted">אין שעות פנויות אחרות ביום זה.</p>}
       <div className="grid grid-cols-4 gap-2">
         {slots.map((s) => (
           <button
             key={s}
             disabled={pending}
             onClick={() => chooseSlot(s)}
-            className="border-tropical-teal text-neon-ice rounded border p-2 text-sm disabled:opacity-50"
+            className="border-barber-teal text-barber-teal rounded-xl border p-2 text-sm disabled:opacity-50"
           >
             {formatTime(s)}
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <button onClick={() => setOpen(false)} className="text-sm text-gray-400 underline">
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <button onClick={() => setOpen(false)} className="text-sm text-slate-muted underline">
         ביטול
       </button>
     </div>
