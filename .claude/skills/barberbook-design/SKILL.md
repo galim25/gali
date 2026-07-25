@@ -41,15 +41,23 @@ Copy these verbatim; don't invent new radii or shapes.
 
 ## Logo / brand banner
 
-One shared asset for the whole app: `apps/web/public/logo-cropped.svg` (transparent
-background, cropped tight to the artwork — never re-add a baked-in gradient or
-frame to this file). Shown via a top banner, right after `<BsdBar/>` and before
-the page's own heading/content — **not** a footer, despite the historical
-component name `BrandHero`/`AdminBrandHero` suggesting otherwise:
+One shared asset for the whole app: `apps/web/public/logo-cropped.png` — a
+**flattened PNG with real alpha transparency**, cropped tight to the artwork.
+It is deliberately a PNG and not an SVG: the original Figma export used
+nested `<mask>`/`<pattern>`/`<image>` SVG elements to fake a transparent
+cutout, which rendered fine in desktop Chromium but was invisible on a real
+mobile browser (WebKit doesn't support that construct reliably) — a real
+bug found 2026-07-26. If the logo art ever changes, render the new source at
+2x with a real alpha channel and export a plain PNG the same way; don't go
+back to a mask-based SVG for this, and don't hand-edit the PNG.
+
+Shown via a top banner, right after `<BsdBar/>` and before the page's own
+heading/content — **not** a footer, despite the historical component name
+`BrandHero`/`AdminBrandHero` suggesting otherwise:
 
 ```tsx
 <div className="from-barber-teal/50 -mx-6 flex flex-col items-center bg-gradient-to-b to-cream px-6 pt-10 pb-10">
-  <img src="/logo-cropped.svg" alt="Yossi Barber" height={90} style={{ height: 90, width: "auto" }} />
+  <img src="/logo-cropped.png" alt="Yossi Barber" height={90} style={{ height: 90, width: "auto" }} />
 </div>
 ```
 
