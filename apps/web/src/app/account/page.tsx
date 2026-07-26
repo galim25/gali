@@ -50,10 +50,10 @@ export default async function AccountPage() {
           <h2 className="text-barber-teal font-bold">הודעות חשובות</h2>
           <ul className="flex flex-col gap-3">
             {announcements.map((a) => (
-              <li key={a.id} className="bg-barber-teal rounded-xl p-4">
-                <p className="text-cream-text font-bold">{a.title}</p>
-                <p className="text-cream-text/90 mt-1 whitespace-pre-wrap text-sm">{a.content}</p>
-                <p className="text-cream-text/60 mt-1 text-xs">{formatDate(a.published_at)}</p>
+              <li key={a.id} className="from-barber-teal to-cream rounded-xl bg-gradient-to-bl p-4">
+                <p className="text-ink font-bold">{a.title}</p>
+                <p className="text-ink/80 mt-1 whitespace-pre-wrap text-sm">{a.content}</p>
+                <p className="text-ink/60 mt-1 text-xs">{formatDate(a.published_at)}</p>
               </li>
             ))}
           </ul>

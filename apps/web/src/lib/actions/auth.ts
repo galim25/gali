@@ -1,16 +1,22 @@
 "use server";
 
+import { randomInt } from "crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@barberbook/db";
 import { getSmsProvider, PASSWORD_RESET_CODE_TTL_MINUTES } from "@barberbook/shared";
 import { createSession, destroySession } from "@/lib/auth/session";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "@/lib/validation";
+
+const RATE_LIMIT_WINDOW_MS = 15 * 60_000;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const TOO_MANY_ATTEMPTS_ERROR = "יותר מדי ניסיונות, נסה/י שוב בעוד כמה דקות";
 
 export type ActionState = { error?: string; success?: boolean };
 
@@ -58,6 +64,15 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   }
   const { phone_number, password } = parsed.data;
 
+  if (
+    !checkRateLimit(`login:${phone_number}`, {
+      maxAttempts: RATE_LIMIT_MAX_ATTEMPTS,
+      windowMs: RATE_LIMIT_WINDOW_MS,
+    })
+  ) {
+    return { error: TOO_MANY_ATTEMPTS_ERROR };
+  }
+
   const user = await prisma.user.findUnique({ where: { phone_number } });
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return { error: "מספר טלפון או סיסמה שגויים" };
@@ -73,7 +88,7 @@ export async function logoutAction() {
 }
 
 function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
 }
 
 export async function forgotPasswordAction(
@@ -116,6 +131,15 @@ export async function resetPasswordAction(
     return { error: parsed.error.issues[0]?.message ?? "נתונים לא תקינים" };
   }
   const { phone_number, code, password } = parsed.data;
+
+  if (
+    !checkRateLimit(`reset:${phone_number}`, {
+      maxAttempts: RATE_LIMIT_MAX_ATTEMPTS,
+      windowMs: RATE_LIMIT_WINDOW_MS,
+    })
+  ) {
+    return { error: TOO_MANY_ATTEMPTS_ERROR };
+  }
 
   const user = await prisma.user.findUnique({ where: { phone_number } });
   if (!user) {

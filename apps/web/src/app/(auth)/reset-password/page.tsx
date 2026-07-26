@@ -63,6 +63,7 @@ function ResetPasswordForm() {
             type="password"
             placeholder="סיסמה חדשה"
             required
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="text-ink placeholder-slate-muted w-full bg-transparent outline-none"
@@ -71,9 +72,11 @@ function ResetPasswordForm() {
         <div className="flex flex-col gap-1">
           <label className="border-barber-teal focus-within:ring-barber-teal flex items-center gap-2 rounded-xl border bg-white px-4 py-3 focus-within:ring-2">
             <input
+              name="confirm_password"
               type="password"
               placeholder="אימות סיסמה"
               required
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="text-ink placeholder-slate-muted w-full bg-transparent outline-none"

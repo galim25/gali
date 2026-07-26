@@ -61,7 +61,16 @@ export async function blockPhoneNumberAction(input: {
 export async function unblockPhoneNumberAction(id: string): Promise<BlocklistResult> {
   if (!(await requireAdminSession())) return { error: "אין הרשאה" };
 
-  await prisma.blockedPhoneNumber.delete({ where: { id } }).catch(() => null);
+  try {
+    await prisma.blockedPhoneNumber.delete({ where: { id } });
+  } catch (err) {
+    // P2025 = record already gone — deleting an already-removed row is a safe no-op.
+    // Anything else (e.g. a transient DB error) must not be reported as success.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025")) {
+      return { error: "לא ניתן היה להסיר את החסימה, נסה/י שוב" };
+    }
+  }
+
   revalidatePath("/admin/blocked-customers");
   return { success: true };
 }

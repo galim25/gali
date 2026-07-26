@@ -8,6 +8,7 @@ import { getUnreadAdminNotificationCount } from "@/lib/actions/adminNotification
 import { getPendingBookingRequestCount } from "@/lib/actions/bookingRequests";
 import { OpenWorkDayForm } from "./OpenWorkDayForm";
 import { DeleteAllWorkDaysButton } from "./DeleteAllWorkDaysButton";
+import { BlockDayToggle } from "./day/[id]/BlockDayToggle";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminBrandHero } from "@/components/AdminBrandHero";
 
@@ -100,9 +101,12 @@ export default async function AdminPage() {
                     </span>
                   )}
                 </p>
-                <Link href={`/admin/day/${d.id}`} className="text-barber-teal text-sm underline">
-                  ניהול היום
-                </Link>
+                <div className="flex flex-col items-end gap-1">
+                  <Link href={`/admin/day/${d.id}`} className="text-barber-teal text-sm underline">
+                    ניהול היום
+                  </Link>
+                  <BlockDayToggle workDayId={d.id} initialValue={d.is_blocked} compact />
+                </div>
               </div>
               <p className="text-slate-muted">
                 {formatHour(d.starts_at)}–{formatHour(d.ends_at)}
