@@ -7,6 +7,11 @@ overrides:
   # next@16.2.12's optional sharp dependency (0.34.5) has 4 HIGH libvips CVEs
   # (GHSA-f88m-g3jw-g9cj) fixed in 0.35.0 — force the patched version.
   sharp: "^0.35.3"
+  # Transitive via minimatch (eslint/glob toolchain) at two major versions —
+  # both had a HIGH DoS via unbounded expansion (GHSA-v6h2-p8h4-qcjw), fixed
+  # in 1.1.17 / 5.0.8 respectively. Not a runtime dependency of the app.
+  brace-expansion@1: "^1.1.17"
+  brace-expansion@5: "^5.0.8"
 
 allowBuilds:
   "@prisma/client": true
