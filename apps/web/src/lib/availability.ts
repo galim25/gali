@@ -1,3 +1,5 @@
+import { ISRAEL_TIME_ZONE, zonedTimeToUtc } from "@barberbook/shared";
+
 export type Interval = { starts_at: Date; ends_at: Date };
 
 export type AvailabilityInput = {
@@ -46,6 +48,47 @@ export function findAvailableSlots(input: AvailabilityInput): Date[] {
     start += step;
   }
   return slots;
+}
+
+export type DayPeriod = {
+  key: "morning" | "afternoon" | "evening";
+  label: string;
+  starts_at: Date;
+  ends_at: Date;
+};
+
+const DAY_PERIOD_BOUNDARIES: { key: DayPeriod["key"]; label: string }[] = [
+  { key: "morning", label: "בוקר" },
+  { key: "afternoon", label: "צהריים" },
+  { key: "evening", label: "ערב" },
+];
+
+/**
+ * Splits a work day into up to 3 fixed time-of-day buckets (morning/
+ * afternoon/evening) at 12:00/18:00 Israel wall-clock time, clipped to the
+ * day's actual open hours. Clipping alone gives both "no gaps between
+ * buckets" and "hide a bucket the day never reaches" (e.g. a 9:00-14:00 day
+ * clips evening to start === end and drops it) without separate logic for
+ * either. Boundaries are wall-clock, not the work day's UTC instant, so the
+ * calendar date is read off `work_day.starts_at` in Israel time first.
+ */
+export function getDayPeriods(work_day: Interval): DayPeriod[] {
+  const work_date = work_day.starts_at.toLocaleDateString("en-CA", { timeZone: ISRAEL_TIME_ZONE });
+  const noon = zonedTimeToUtc(work_date, "12:00", ISRAEL_TIME_ZONE);
+  const evening = zonedTimeToUtc(work_date, "18:00", ISRAEL_TIME_ZONE);
+
+  const windows = [
+    [work_day.starts_at, noon],
+    [noon, evening],
+    [evening, work_day.ends_at],
+  ] as const;
+
+  return DAY_PERIOD_BOUNDARIES.map(({ key, label }, i) => {
+    const [start, end] = windows[i];
+    const starts_at = start < work_day.starts_at ? work_day.starts_at : start;
+    const ends_at = end > work_day.ends_at ? work_day.ends_at : end;
+    return { key, label, starts_at, ends_at };
+  }).filter((p) => p.starts_at < p.ends_at);
 }
 
 export function isSlotAvailable(

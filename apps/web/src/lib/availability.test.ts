@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findAvailableSlots, isSlotAvailable } from "./availability";
+import { ISRAEL_TIME_ZONE, zonedTimeToUtc } from "@barberbook/shared";
+import { findAvailableSlots, isSlotAvailable, getDayPeriods } from "./availability";
+
+const israelDay = (startTime: string, endTime: string) => ({
+  starts_at: zonedTimeToUtc("2026-08-01", startTime, ISRAEL_TIME_ZONE),
+  ends_at: zonedTimeToUtc("2026-08-01", endTime, ISRAEL_TIME_ZONE),
+});
 
 const day = (h1: number, h2: number) => ({
   starts_at: new Date(`2026-08-01T${String(h1).padStart(2, "0")}:00:00Z`),
@@ -95,4 +101,43 @@ test("isSlotAvailable rejects a slot outside work-day bounds", () => {
   const wd = day(9, 17);
   assert.equal(isSlotAvailable(at(16, 55), 10, wd, []), false);
   assert.equal(isSlotAvailable(at(8, 55), 10, wd, []), false);
+});
+
+test("getDayPeriods splits a full long day into 3 contiguous buckets", () => {
+  const wd = israelDay("09:00", "23:30");
+  const periods = getDayPeriods(wd);
+  assert.deepEqual(periods.map((p) => p.key), ["morning", "afternoon", "evening"]);
+  assert.equal(periods[0].starts_at.getTime(), wd.starts_at.getTime());
+  assert.equal(periods[0].ends_at.getTime(), zonedTimeToUtc("2026-08-01", "12:00", ISRAEL_TIME_ZONE).getTime());
+  assert.equal(periods[1].starts_at.getTime(), periods[0].ends_at.getTime());
+  assert.equal(periods[1].ends_at.getTime(), zonedTimeToUtc("2026-08-01", "18:00", ISRAEL_TIME_ZONE).getTime());
+  assert.equal(periods[2].starts_at.getTime(), periods[1].ends_at.getTime());
+  assert.equal(periods[2].ends_at.getTime(), wd.ends_at.getTime());
+});
+
+test("getDayPeriods drops evening when the day ends before 18:00", () => {
+  const wd = israelDay("09:00", "11:30");
+  const periods = getDayPeriods(wd);
+  assert.deepEqual(periods.map((p) => p.key), ["morning"]);
+  assert.equal(periods[0].starts_at.getTime(), wd.starts_at.getTime());
+  assert.equal(periods[0].ends_at.getTime(), wd.ends_at.getTime());
+});
+
+test("getDayPeriods returns only evening, starting at the real day start, for an evening-only day", () => {
+  const wd = israelDay("19:00", "22:00");
+  const periods = getDayPeriods(wd);
+  assert.deepEqual(periods.map((p) => p.key), ["evening"]);
+  assert.equal(periods[0].starts_at.getTime(), wd.starts_at.getTime());
+  assert.equal(periods[0].ends_at.getTime(), wd.ends_at.getTime());
+});
+
+test("getDayPeriods clips a day spanning morning into afternoon with no gap", () => {
+  const wd = israelDay("10:00", "13:00");
+  const periods = getDayPeriods(wd);
+  assert.deepEqual(periods.map((p) => p.key), ["morning", "afternoon"]);
+  const noon = zonedTimeToUtc("2026-08-01", "12:00", ISRAEL_TIME_ZONE);
+  assert.equal(periods[0].starts_at.getTime(), wd.starts_at.getTime());
+  assert.equal(periods[0].ends_at.getTime(), noon.getTime());
+  assert.equal(periods[1].starts_at.getTime(), noon.getTime());
+  assert.equal(periods[1].ends_at.getTime(), wd.ends_at.getTime());
 });

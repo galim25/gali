@@ -13,10 +13,11 @@ import {
 } from "@/lib/actions/booking";
 import { joinWaitlistAction } from "@/lib/actions/waitlist";
 import { getRequiresApproval } from "@/lib/actions/settings";
+import { getDayPeriods, type DayPeriod } from "@/lib/availability";
 import { BrandHero } from "@/components/BrandHero";
 import { BsdBar } from "@/components/BsdBar";
 
-type Step = "date" | "service" | "slot" | "attendee" | "done";
+type Step = "date" | "service" | "period" | "slot" | "attendee" | "done";
 
 const WEEKDAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const MONTH_LABELS = [
@@ -145,8 +146,27 @@ export default function BookAppointmentPage() {
 
   const [service, setService] = useState<ServiceOption>();
   const [date, setDate] = useState<OpenDate>();
+  const [period, setPeriod] = useState<DayPeriod>();
   const [slot, setSlot] = useState<string>();
   const [attendeeName, setAttendeeName] = useState("");
+
+  const periods = useMemo(
+    () =>
+      date
+        ? getDayPeriods({ starts_at: new Date(date.starts_at), ends_at: new Date(date.ends_at) })
+        : [],
+    [date],
+  );
+  const periodSlots = useMemo(
+    () =>
+      period
+        ? slots.filter((s) => {
+            const t = new Date(s);
+            return t >= period.starts_at && t < period.ends_at;
+          })
+        : slots,
+    [slots, period],
+  );
 
   // Dates come first: the customer sees whether there's anything open at
   // all before picking a service, instead of choosing a service and only
@@ -173,6 +193,19 @@ export default function BookAppointmentPage() {
     setError(undefined);
     const available = await getSlotsForDate(date.work_day_id, s.id);
     setSlots(available);
+    // The whole open day fits in one time-of-day bucket — skip a
+    // meaningless single-button choice and go straight to the slot grid.
+    if (periods.length === 1) {
+      setPeriod(periods[0]);
+      setStep("slot");
+      return;
+    }
+    setStep("period");
+  }
+
+  function choosePeriod(p: DayPeriod) {
+    setPeriod(p);
+    setError(undefined);
     setStep("slot");
   }
 
@@ -221,6 +254,7 @@ export default function BookAppointmentPage() {
     setStep("date");
     setService(undefined);
     setDate(undefined);
+    setPeriod(undefined);
     setSlot(undefined);
     setAttendeeName("");
     setPendingApproval(false);
@@ -286,9 +320,32 @@ export default function BookAppointmentPage() {
         </div>
       )}
 
-      {step === "slot" && (
+      {step === "period" && (
         <div className="flex flex-col gap-3">
-          <p className="text-ink font-bold">בחרו שעה:</p>
+          <p className="text-ink font-bold">באיזה חלק מהיום נוח לך?</p>
+          <div className="flex flex-col gap-2">
+            {periods.map((p) => {
+              const count = slots.filter((s) => {
+                const t = new Date(s);
+                return t >= p.starts_at && t < p.ends_at;
+              }).length;
+              return (
+                <button
+                  type="button"
+                  key={p.key}
+                  disabled={count === 0}
+                  onClick={() => choosePeriod(p)}
+                  className="border-barber-teal text-ink hover:bg-barber-teal/10 rounded-xl border bg-white p-3 text-right disabled:opacity-50"
+                >
+                  {p.label}{" "}
+                  <span className="text-slate-muted text-sm">
+                    ({formatTime(p.starts_at.toISOString())}–{formatTime(p.ends_at.toISOString())} ·{" "}
+                    {count > 0 ? `${count} פנויים` : "מלא"})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           {slots.length === 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-slate-muted">אין שעות פנויות ביום זה.</p>
@@ -308,9 +365,37 @@ export default function BookAppointmentPage() {
               )}
             </div>
           )}
+          <button type="button" onClick={() => setStep("service")} className="text-barber-teal self-start text-sm font-medium">
+            חזרה
+          </button>
+        </div>
+      )}
+
+      {step === "slot" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-ink font-bold">בחרו שעה:</p>
+          {periodSlots.length === 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-slate-muted">אין שעות פנויות בטווח הזה.</p>
+              {waitlistJoined ? (
+                <p className="text-barber-teal text-sm font-medium">
+                  נרשמת לרשימת ההמתנה — נעדכן אותך כשיתפנה תור.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={joinWaitlist}
+                  disabled={waitlistPending}
+                  className="border-barber-teal text-barber-teal rounded-full border py-2 text-sm font-medium disabled:opacity-50"
+                >
+                  {waitlistPending ? "נרשם..." : "הצטרפ/י לרשימת ההמתנה"}
+                </button>
+              )}
+            </div>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap gap-2">
-            {slots.map((s) => (
+            {periodSlots.map((s) => (
               <button
                 type="button"
                 key={s}
@@ -322,7 +407,11 @@ export default function BookAppointmentPage() {
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setStep("service")} className="text-barber-teal self-start text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setStep(periods.length === 1 ? "service" : "period")}
+            className="text-barber-teal self-start text-sm font-medium"
+          >
             חזרה
           </button>
         </div>

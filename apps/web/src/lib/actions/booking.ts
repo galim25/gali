@@ -14,7 +14,7 @@ export type ServiceOption = {
   duration_minutes: number;
   is_child_service: boolean;
 };
-export type OpenDate = { work_day_id: string; work_date: string };
+export type OpenDate = { work_day_id: string; work_date: string; starts_at: string; ends_at: string };
 export type BookingResult = { error?: string; success?: boolean; pendingApproval?: boolean };
 
 export async function getServices(): Promise<ServiceOption[]> {
@@ -29,9 +29,14 @@ export async function getOpenDates(): Promise<OpenDate[]> {
   const days = await prisma.workDay.findMany({
     where: { work_date: { gte: today }, is_blocked: false },
     orderBy: { work_date: "asc" },
-    select: { id: true, work_date: true },
+    select: { id: true, work_date: true, starts_at: true, ends_at: true },
   });
-  return days.map((d) => ({ work_day_id: d.id, work_date: d.work_date.toISOString().slice(0, 10) }));
+  return days.map((d) => ({
+    work_day_id: d.id,
+    work_date: d.work_date.toISOString().slice(0, 10),
+    starts_at: d.starts_at.toISOString(),
+    ends_at: d.ends_at.toISOString(),
+  }));
 }
 
 async function loadBusyIntervals(
