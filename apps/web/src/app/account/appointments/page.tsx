@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@barberbook/db";
 import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
+import { getRequiresApproval } from "@/lib/actions/settings";
 import { RescheduleButton } from "./RescheduleButton";
 import { RequestCancellationButton } from "./RequestCancellationButton";
 import { BrandHero } from "@/components/BrandHero";
@@ -21,6 +22,8 @@ function formatDateTime(d: Date) {
 export default async function AppointmentsPage() {
   const session = await getSession();
   if (!session) return null;
+
+  const requiresApproval = await getRequiresApproval();
 
   const appointments = await prisma.appointment.findMany({
     where: {
@@ -63,7 +66,7 @@ export default async function AppointmentsPage() {
             ) : (
               <div className="mt-2 flex flex-col gap-2">
                 <RescheduleButton appointmentId={a.id} serviceId={a.service.id} />
-                <RequestCancellationButton appointmentId={a.id} />
+                <RequestCancellationButton appointmentId={a.id} requiresApproval={requiresApproval} />
               </div>
             )}
           </li>

@@ -4,13 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestCancellationAction } from "@/lib/actions/cancellationRequests";
 
-export function RequestCancellationButton({ appointmentId }: { appointmentId: string }) {
+export function RequestCancellationButton({
+  appointmentId,
+  requiresApproval,
+}: {
+  appointmentId: string;
+  requiresApproval: boolean;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
   async function request() {
-    if (!window.confirm("לשלוח בקשת ביטול לספר? התור יבוטל רק לאחר שהספר יאשר.")) return;
+    const confirmText = requiresApproval
+      ? "לשלוח בקשת ביטול לספר? התור יבוטל רק לאחר שהספר יאשר."
+      : "לבטל את התור? לא ניתן לשחזר.";
+    if (!window.confirm(confirmText)) return;
     setPending(true);
     setError(undefined);
     const result = await requestCancellationAction(appointmentId);
@@ -25,7 +34,7 @@ export function RequestCancellationButton({ appointmentId }: { appointmentId: st
   return (
     <div className="flex flex-col gap-1">
       <button onClick={request} disabled={pending} className="text-sm text-red-600 disabled:opacity-50">
-        {pending ? "שולח..." : "בקשת ביטול"}
+        {pending ? (requiresApproval ? "שולח..." : "מבטל...") : requiresApproval ? "בקשת ביטול" : "ביטול תור"}
       </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
