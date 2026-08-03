@@ -14,7 +14,13 @@ function formatTime(iso: string) {
   });
 }
 
-export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }) {
+export function CreateManualAppointmentForm({
+  workDayId,
+  barberId,
+}: {
+  workDayId: string;
+  barberId: string;
+}) {
   const router = useRouter();
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [serviceId, setServiceId] = useState("");
@@ -26,8 +32,8 @@ export function CreateManualAppointmentForm({ workDayId }: { workDayId: string }
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    getServices().then(setServices);
-  }, []);
+    getServices(barberId).then(setServices);
+  }, [barberId]);
 
   const service = services.find((s) => s.id === serviceId);
 

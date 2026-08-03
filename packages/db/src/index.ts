@@ -13,6 +13,7 @@ export type {
   User,
   UserRole,
   Service,
+  Barber,
   WorkDay,
   WorkBreak,
   BlockedTime,

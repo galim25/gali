@@ -10,6 +10,7 @@ import { notifyWaitlistOfExtendedHours, notifyWaitlistOfNewWorkDay } from "@/lib
 export type WorkDayBreak = { id: string; starts_at: Date; ends_at: Date };
 export type WorkDayWithBreaks = {
   id: string;
+  barber_id: string;
   work_date: Date;
   starts_at: Date;
   ends_at: Date;
@@ -19,6 +20,7 @@ export type WorkDayWithBreaks = {
 
 type BreakInput = { starts_at: string; ends_at: string }; // "HH:mm"
 type CreateWorkDayInput = {
+  barber_id: string;
   work_date: string; // "YYYY-MM-DD"
   starts_at: string; // "HH:mm"
   ends_at: string; // "HH:mm"
@@ -32,10 +34,10 @@ async function requireAdminSession() {
   return session;
 }
 
-export async function getWorkDaysAdmin(): Promise<WorkDayWithBreaks[]> {
+export async function getWorkDaysAdmin(barber_id: string): Promise<WorkDayWithBreaks[]> {
   if (!(await requireAdminSession())) return [];
   return prisma.workDay.findMany({
-    where: { work_date: { gte: localDateToUtcMidnight() } },
+    where: { barber_id, work_date: { gte: localDateToUtcMidnight() } },
     orderBy: { work_date: "asc" },
     include: { breaks: true },
   });
@@ -43,13 +45,18 @@ export async function getWorkDaysAdmin(): Promise<WorkDayWithBreaks[]> {
 
 export type WorkDayDetail = WorkDayWithBreaks & {
   blocked_times: { id: string; starts_at: Date; ends_at: Date }[];
+  barber: { full_name: string; is_primary: boolean };
 };
 
 export async function getWorkDayDetail(work_day_id: string): Promise<WorkDayDetail | null> {
   if (!(await requireAdminSession())) return null;
   return prisma.workDay.findUnique({
     where: { id: work_day_id },
-    include: { breaks: true, blocked_times: true },
+    include: {
+      breaks: true,
+      blocked_times: true,
+      barber: { select: { full_name: true, is_primary: true } },
+    },
   });
 }
 
@@ -212,6 +219,7 @@ export async function createWorkDayAction(input: CreateWorkDayInput): Promise<Cr
   try {
     await prisma.workDay.create({
       data: {
+        barber_id: input.barber_id,
         work_date: new Date(`${input.work_date}T00:00:00Z`),
         starts_at,
         ends_at,
@@ -280,13 +288,16 @@ export async function deleteWorkDayAction(
   return { success: true };
 }
 
-/** Same as deleteWorkDayAction but wipes every work day in the system — the "מחיקת כל היומן" bulk purge. */
-export async function deleteAllWorkDaysAction(notifyCustomers: boolean): Promise<CreateWorkDayResult> {
+/** Same as deleteWorkDayAction but wipes every work day for one barber — the "מחיקת כל היומן" bulk purge, scoped to whichever barber's calendar is currently selected on /admin. */
+export async function deleteAllWorkDaysAction(
+  barber_id: string,
+  notifyCustomers: boolean,
+): Promise<CreateWorkDayResult> {
   if (!(await requireAdminSession())) return { error: "אין הרשאה" };
 
   if (notifyCustomers) {
     const appointments = await prisma.appointment.findMany({
-      where: { status: "scheduled", starts_at: { gte: new Date() } },
+      where: { status: "scheduled", starts_at: { gte: new Date() }, work_day: { barber_id } },
       include: { service: true, booked_by: true },
     });
 
@@ -302,7 +313,7 @@ export async function deleteAllWorkDaysAction(notifyCustomers: boolean): Promise
     }
   }
 
-  await prisma.workDay.deleteMany({});
+  await prisma.workDay.deleteMany({ where: { barber_id } });
 
   revalidatePath("/admin");
   return { success: true };

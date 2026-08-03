@@ -1,7 +1,11 @@
 "use server";
 
 import { prisma } from "@barberbook/db";
-import { localDateToUtcMidnight } from "@barberbook/shared";
+import {
+  isServiceAllowedForBarber,
+  localDateToUtcMidnight,
+  SUB_BARBER_SERVICE_NAMES,
+} from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { findAvailableSlots, isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
@@ -17,17 +21,22 @@ export type ServiceOption = {
 export type OpenDate = { work_day_id: string; work_date: string; starts_at: string; ends_at: string };
 export type BookingResult = { error?: string; success?: boolean; pendingApproval?: boolean };
 
-export async function getServices(): Promise<ServiceOption[]> {
+export async function getServices(barber_id: string): Promise<ServiceOption[]> {
+  const barber = await prisma.barber.findUniqueOrThrow({
+    where: { id: barber_id },
+    select: { is_primary: true },
+  });
   return prisma.service.findMany({
+    where: barber.is_primary ? {} : { name: { in: [...SUB_BARBER_SERVICE_NAMES] } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, duration_minutes: true, is_child_service: true },
   });
 }
 
-export async function getOpenDates(): Promise<OpenDate[]> {
+export async function getOpenDates(barber_id: string): Promise<OpenDate[]> {
   const today = localDateToUtcMidnight();
   const days = await prisma.workDay.findMany({
-    where: { work_date: { gte: today }, is_blocked: false },
+    where: { barber_id, work_date: { gte: today }, is_blocked: false },
     orderBy: { work_date: "asc" },
     select: { id: true, work_date: true, starts_at: true, ends_at: true },
   });
@@ -110,6 +119,7 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
       const workDay = await tx.workDay.findUniqueOrThrow({
         where: { id: input.work_day_id },
         include: {
+          barber: { select: { is_primary: true } },
           breaks: true,
           blocked_times: true,
           appointments: { where: { status: "scheduled" } },
@@ -117,6 +127,9 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
       });
       if (workDay.is_blocked) {
         throw new Error("DAY_BLOCKED");
+      }
+      if (!isServiceAllowedForBarber(workDay.barber.is_primary, service.name)) {
+        throw new Error("SERVICE_NOT_OFFERED");
       }
       const busy: Interval[] = [
         ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
@@ -187,6 +200,9 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
     if (err instanceof Error && err.message === "DAY_BLOCKED") {
       return { error: "היום הזה חסום כרגע לקביעת תורים חדשים" };
     }
+    if (err instanceof Error && err.message === "SERVICE_NOT_OFFERED") {
+      return { error: "השירות הזה לא זמין אצל הספר הזה" };
+    }
     // Serializable transactions can fail under concurrent writes to the same day; treat as a retry-worthy conflict.
     return { error: "לא ניתן היה לשמור את התור, נסה/י שוב" };
   }
@@ -218,6 +234,7 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
       const workDay = await tx.workDay.findUniqueOrThrow({
         where: { id: input.work_day_id },
         include: {
+          barber: { select: { is_primary: true } },
           breaks: true,
           blocked_times: true,
           appointments: { where: { status: "scheduled" } },
@@ -225,6 +242,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
       });
       if (workDay.is_blocked) {
         throw new Error("DAY_BLOCKED");
+      }
+      if (!isServiceAllowedForBarber(workDay.barber.is_primary, appointment.service.name)) {
+        throw new Error("SERVICE_NOT_OFFERED");
       }
       const busy: Interval[] = [
         ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
@@ -268,6 +288,9 @@ export async function rescheduleAppointmentAction(input: RescheduleInput): Promi
     }
     if (err instanceof Error && err.message === "DAY_BLOCKED") {
       return { error: "היום הזה חסום כרגע לקביעת תורים חדשים" };
+    }
+    if (err instanceof Error && err.message === "SERVICE_NOT_OFFERED") {
+      return { error: "השירות הזה לא זמין אצל הספר הזה" };
     }
     return { error: "לא ניתן היה לעדכן את התור, נסה/י שוב" };
   }

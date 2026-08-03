@@ -76,6 +76,7 @@ export type PendingCancellationRequest = {
   appointment_id: string;
   customer_name: string;
   service_name: string;
+  barber_name: string;
   starts_at: Date;
   requested_at: Date;
 };
@@ -84,7 +85,9 @@ export async function getPendingCancellationRequests(): Promise<PendingCancellat
   if (!(await requireAdminSession())) return [];
   const requests = await prisma.cancellationRequest.findMany({
     where: { status: "pending" },
-    include: { appointment: { include: { service: true } } },
+    include: {
+      appointment: { include: { service: true, work_day: { include: { barber: true } } } },
+    },
     orderBy: { requested_at: "asc" },
   });
   return requests.map((r) => ({
@@ -92,6 +95,7 @@ export async function getPendingCancellationRequests(): Promise<PendingCancellat
     appointment_id: r.appointment_id,
     customer_name: r.appointment.customer_name,
     service_name: r.appointment.service.name,
+    barber_name: r.appointment.work_day.barber.full_name,
     starts_at: r.appointment.starts_at,
     requested_at: r.requested_at,
   }));

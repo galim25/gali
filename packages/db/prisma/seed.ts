@@ -36,6 +36,16 @@ async function main() {
   });
   console.log(`Seeded/updated admin user: phone=${adminPhone}`);
 
+  // The primary Barber row — distinct from the admin User account above
+  // (login vs. calendar identity), but keyed to the same display name. See
+  // CLAUDE.md, "ספרי משנה": sub-barbers (is_primary: false) are added via
+  // /admin/barbers and never seeded here.
+  await prisma.barber.upsert({
+    where: { id: "primary" },
+    update: { full_name: ADMIN_FULL_NAME },
+    create: { id: "primary", full_name: ADMIN_FULL_NAME, is_primary: true },
+  });
+
   if (!existingAdmin) {
     if (process.env.ADMIN_SEED_PASSWORD) {
       console.log("Admin password set from ADMIN_SEED_PASSWORD.");

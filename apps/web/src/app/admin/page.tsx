@@ -3,6 +3,7 @@ import { ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { requireAdmin } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/actions/auth";
 import { getWorkDaysAdmin } from "@/lib/actions/workdays";
+import { getBarbersAdmin } from "@/lib/actions/barbers";
 import { getPendingCancellationCount } from "@/lib/actions/cancellationRequests";
 import { getUnreadAdminNotificationCount } from "@/lib/actions/adminNotifications";
 import { getPendingBookingRequestCount } from "@/lib/actions/bookingRequests";
@@ -29,9 +30,19 @@ function formatHour(d: Date) {
   });
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ barber?: string }>;
+}) {
   const session = await requireAdmin();
-  const workDays = await getWorkDaysAdmin();
+  const barbers = await getBarbersAdmin();
+  const { barber: requestedBarberId } = await searchParams;
+  const selectedBarber =
+    barbers.find((b) => b.id === requestedBarberId) ?? barbers.find((b) => b.is_primary) ?? barbers[0];
+  if (!selectedBarber) return null;
+
+  const workDays = await getWorkDaysAdmin(selectedBarber.id);
   const pendingCancellations = await getPendingCancellationCount();
   const unreadNotifications = await getUnreadAdminNotificationCount();
   const pendingBookingRequests = await getPendingBookingRequestCount();
@@ -82,9 +93,37 @@ export default async function AdminPage() {
         >
           הגדרות
         </Link>
+        <Link
+          href="/admin/barbers"
+          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+        >
+          ניהול ספרים
+        </Link>
       </div>
 
-      <OpenWorkDayForm openWorkDates={workDays.map((d) => d.work_date.toISOString().slice(0, 10))} />
+      {barbers.length > 1 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {barbers.map((b) => (
+            <Link
+              key={b.id}
+              href={`/admin?barber=${b.id}`}
+              className={
+                b.id === selectedBarber.id
+                  ? "bg-barber-teal text-cream-text rounded-full px-3 py-1 text-sm font-medium"
+                  : "border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+              }
+            >
+              {b.full_name}
+              {!b.is_active && " (לא פעיל)"}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <OpenWorkDayForm
+        barberId={selectedBarber.id}
+        openWorkDates={workDays.map((d) => d.work_date.toISOString().slice(0, 10))}
+      />
 
       <div className="flex flex-col gap-2">
         <h2 className="text-ink font-bold">ימי עבודה פתוחים</h2>
@@ -129,7 +168,7 @@ export default async function AdminPage() {
         <Link href="/admin/print-all" className="text-barber-teal text-sm underline">
           הדפסה / שמירת עותק כ-PDF של כל היומן
         </Link>
-        <DeleteAllWorkDaysButton />
+        <DeleteAllWorkDaysButton barberId={selectedBarber.id} barberName={selectedBarber.full_name} />
       </div>
 
       <form action={logoutAction}>

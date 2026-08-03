@@ -9,6 +9,15 @@ export const SERVICE_DEFINITIONS = [
   { name: "תספורת מבוגר + טיפול לייזר", duration_minutes: 20, is_child_service: false },
 ] as const;
 
+// The fixed set of services a sub-barber (Barber.is_primary: false) may
+// offer — see CLAUDE.md, "ספרי משנה". Not admin-configurable per barber;
+// the primary barber always offers the full SERVICE_DEFINITIONS list.
+export const SUB_BARBER_SERVICE_NAMES = ["תספורת מבוגר", "תספורת + זקן", "תספורת ילד"] as const;
+
+export function isServiceAllowedForBarber(barberIsPrimary: boolean, serviceName: string): boolean {
+  return barberIsPrimary || (SUB_BARBER_SERVICE_NAMES as readonly string[]).includes(serviceName);
+}
+
 export const PHONE_NUMBER_REGEX = /^0\d{8,9}$/;
 
 /**

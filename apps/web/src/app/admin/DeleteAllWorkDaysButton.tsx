@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { deleteAllWorkDaysAction } from "@/lib/actions/workdays";
 
-export function DeleteAllWorkDaysButton() {
+export function DeleteAllWorkDaysButton({ barberId, barberName }: { barberId: string; barberName: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -13,13 +13,13 @@ export function DeleteAllWorkDaysButton() {
 
   async function del(notifyCustomers: boolean) {
     const warning = notifyCustomers
-      ? "למחוק את כל היומן לצמיתות — כל ימי העבודה וכל התורים, בלי יוצא מן הכלל? לא ניתן לשחזר. לקוחות עם תור פעיל יקבלו הודעת ביטול."
-      : "למחוק את כל היומן לצמיתות — כל ימי העבודה וכל התורים, בלי יוצא מן הכלל? לא ניתן לשחזר. לקוחות לא יקבלו שום הודעה על כך.";
+      ? `למחוק לצמיתות את כל היומן של ${barberName} — כל ימי העבודה וכל התורים שלו/ה, בלי יוצא מן הכלל? לא ניתן לשחזר. לקוחות עם תור פעיל יקבלו הודעת ביטול.`
+      : `למחוק לצמיתות את כל היומן של ${barberName} — כל ימי העבודה וכל התורים שלו/ה, בלי יוצא מן הכלל? לא ניתן לשחזר. לקוחות לא יקבלו שום הודעה על כך.`;
     if (!window.confirm(warning)) return;
     if (!window.confirm("אישור נוסף: פעולה זו בלתי הפיכה. להמשיך?")) return;
     setPending(true);
     setError(undefined);
-    const result = await deleteAllWorkDaysAction(notifyCustomers);
+    const result = await deleteAllWorkDaysAction(barberId, notifyCustomers);
     setPending(false);
     if (result.error) {
       setError(result.error);

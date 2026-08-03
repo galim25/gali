@@ -31,7 +31,12 @@ export default async function AppointmentsPage() {
       status: "scheduled",
       starts_at: { gte: new Date() },
     },
-    include: { service: true, cancellation_request: true, booking_request: true },
+    include: {
+      service: true,
+      cancellation_request: true,
+      booking_request: true,
+      work_day: { select: { barber_id: true } },
+    },
     orderBy: { starts_at: "asc" },
   });
 
@@ -65,7 +70,11 @@ export default async function AppointmentsPage() {
               <p className="text-slate-muted mt-2 text-sm">בקשת ביטול נשלחה — ממתינה לאישור הספר</p>
             ) : (
               <div className="mt-2 flex flex-col gap-2">
-                <RescheduleButton appointmentId={a.id} serviceId={a.service.id} />
+                <RescheduleButton
+                  appointmentId={a.id}
+                  serviceId={a.service.id}
+                  barberId={a.work_day.barber_id}
+                />
                 <RequestCancellationButton appointmentId={a.id} requiresApproval={requiresApproval} />
               </div>
             )}

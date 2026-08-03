@@ -120,7 +120,13 @@ function AdminDateCalendar({
   );
 }
 
-export function OpenWorkDayForm({ openWorkDates }: { openWorkDates: string[] }) {
+export function OpenWorkDayForm({
+  barberId,
+  openWorkDates,
+}: {
+  barberId: string;
+  openWorkDates: string[];
+}) {
   const router = useRouter();
   const [workDate, setWorkDate] = useState("");
   const [startsAt, setStartsAt] = useState("09:00");
@@ -153,6 +159,7 @@ export function OpenWorkDayForm({ openWorkDates }: { openWorkDates: string[] }) 
     setPending(true);
     setError(undefined);
     const result = await createWorkDayAction({
+      barber_id: barberId,
       work_date: workDate,
       starts_at: startsAt,
       ends_at: endsAt,

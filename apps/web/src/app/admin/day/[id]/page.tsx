@@ -51,7 +51,8 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
   return (
     <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
       <PageHeader title={formatWorkDate(workDay.work_date)} topBanner={<AdminBrandHero />} />
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-slate-muted text-sm">{workDay.barber.full_name}</p>
         <Link href="/admin" className="text-barber-teal text-sm underline">
           חזרה לניהול
         </Link>
@@ -72,7 +73,7 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
         initialEndsAt={formatHHMM(workDay.ends_at)}
       />
 
-      <CreateManualAppointmentForm workDayId={workDay.id} />
+      <CreateManualAppointmentForm workDayId={workDay.id} barberId={workDay.barber_id} />
 
       <div className="flex flex-col gap-2">
         <h2 className="text-ink font-bold">לוח היום ({appointments.length} תורים)</h2>

@@ -115,8 +115,31 @@ model Service {
   @@map("services")
 }
 
+model Barber {
+  id         String   @id @default(cuid())
+  full_name  String
+  /// Exactly one Barber has this set — the shop's original single admin
+  /// identity (see CLAUDE.md, "שם מנהל המערכת"). Offers all Services; a
+  /// sub-barber (is_primary: false) is restricted to a fixed subset (see
+  /// SUB_BARBER_SERVICE_NAMES in packages/shared). Can never be deactivated
+  /// (setBarberActiveAction rejects it) so the shop always has at least one
+  /// bookable barber.
+  is_primary Boolean  @default(false)
+  /// Deactivating (not deleting — WorkDay.barber_id is onDelete: Restrict)
+  /// hides a barber from customer-facing pickers while preserving their
+  /// existing calendar/appointments for the admin to still manage.
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  work_days WorkDay[]
+
+  @@map("barbers")
+}
+
 model WorkDay {
   id          String   @id @default(cuid())
+  barber_id   String
   work_date   DateTime @db.Date
   starts_at   DateTime
   ends_at     DateTime
@@ -130,11 +153,12 @@ model WorkDay {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
+  barber        Barber        @relation(fields: [barber_id], references: [id], onDelete: Restrict)
   breaks        WorkBreak[]
   blocked_times BlockedTime[]
   appointments  Appointment[]
 
-  @@unique([work_date])
+  @@unique([barber_id, work_date])
   @@map("work_days")
 }
 

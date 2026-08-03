@@ -38,6 +38,7 @@ export default async function BookingRequestsPage() {
             <p className="text-ink font-bold">
               {r.customer_name} · {r.service_name}
             </p>
+            <p className="text-slate-muted">אצל {r.barber_name}</p>
             <p className="text-slate-muted">{formatDateTime(r.starts_at)}</p>
             <p className="text-slate-muted">הבקשה נשלחה: {formatDateTime(r.requested_at)}</p>
             <div className="mt-2">

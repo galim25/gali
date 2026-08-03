@@ -11,13 +11,14 @@ import {
   type ServiceOption,
   type OpenDate,
 } from "@/lib/actions/booking";
+import { getActiveBarbers, type BarberOption } from "@/lib/actions/barbers";
 import { joinWaitlistAction } from "@/lib/actions/waitlist";
 import { getRequiresApproval } from "@/lib/actions/settings";
 import { getDayPeriods, type DayPeriod } from "@/lib/availability";
 import { BrandHero } from "@/components/BrandHero";
 import { BsdBar } from "@/components/BsdBar";
 
-type Step = "date" | "service" | "period" | "slot" | "attendee" | "done";
+type Step = "barber" | "date" | "service" | "period" | "slot" | "attendee" | "done";
 
 const WEEKDAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const MONTH_LABELS = [
@@ -132,7 +133,8 @@ function DateCalendar({
 
 export default function BookAppointmentPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("date");
+  const [step, setStep] = useState<Step>("barber");
+  const [barbers, setBarbers] = useState<BarberOption[]>([]);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [dates, setDates] = useState<OpenDate[]>([]);
   const [datesLoading, setDatesLoading] = useState(true);
@@ -144,6 +146,7 @@ export default function BookAppointmentPage() {
   const [pendingApproval, setPendingApproval] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
 
+  const [barber, setBarber] = useState<BarberOption>();
   const [service, setService] = useState<ServiceOption>();
   const [date, setDate] = useState<OpenDate>();
   const [period, setPeriod] = useState<DayPeriod>();
@@ -168,21 +171,39 @@ export default function BookAppointmentPage() {
     [slots, period],
   );
 
-  // Dates come first: the customer sees whether there's anything open at
-  // all before picking a service, instead of choosing a service and only
-  // then discovering there are no open dates. datesLoading avoids a false
-  // "no open dates" flash while the fetch is still in flight.
+  // Barber comes first, then dates, then service: the customer sees whether
+  // there's anything open at all before picking a service, instead of
+  // choosing a service and only then discovering there are no open dates.
+  // A shop with only one active barber (today's default, before any
+  // sub-barber is added) skips straight to date selection — no pointless
+  // single-option picker.
   useEffect(() => {
-    getOpenDates()
-      .then(setDates)
-      .finally(() => setDatesLoading(false));
+    getActiveBarbers().then((list) => {
+      setBarbers(list);
+      if (list.length === 1) {
+        chooseBarber(list[0]);
+      } else {
+        setDatesLoading(false);
+      }
+    });
     getRequiresApproval().then(setRequiresApproval);
   }, []);
 
+  async function chooseBarber(b: BarberOption) {
+    setBarber(b);
+    setError(undefined);
+    setDatesLoading(true);
+    const openDates = await getOpenDates(b.id);
+    setDates(openDates);
+    setDatesLoading(false);
+    setStep("date");
+  }
+
   async function chooseDate(d: OpenDate) {
+    if (!barber) return;
     setDate(d);
     setError(undefined);
-    const available = await getServices();
+    const available = await getServices(barber.id);
     setServices(available);
     setStep("service");
   }
@@ -251,13 +272,19 @@ export default function BookAppointmentPage() {
   }
 
   function bookAnother() {
-    setStep("date");
     setService(undefined);
     setDate(undefined);
     setPeriod(undefined);
     setSlot(undefined);
     setAttendeeName("");
     setPendingApproval(false);
+    if (barbers.length === 1) {
+      setStep("date");
+    } else {
+      setBarber(undefined);
+      setDates([]);
+      setStep("barber");
+    }
   }
 
   return (
@@ -270,6 +297,26 @@ export default function BookAppointmentPage() {
         <p className="text-slate-muted mb-4 text-sm">
           לתשומת ליבך: כרגע כל תור וכל בקשת ביטול דורשים אישור מפורש של הספר.
         </p>
+      )}
+
+      {step === "barber" && (
+        <div className="flex flex-col gap-2">
+          <p className="text-ink font-bold">בחרו ספר:</p>
+          {barbers.length === 0 ? (
+            <p className="text-slate-muted">אין כרגע ספרים זמינים.</p>
+          ) : (
+            barbers.map((b) => (
+              <button
+                type="button"
+                key={b.id}
+                onClick={() => chooseBarber(b)}
+                className="border-barber-teal text-ink hover:bg-barber-teal/10 rounded-xl border bg-white p-3 text-right"
+              >
+                {b.full_name}
+              </button>
+            ))
+          )}
+        </div>
       )}
 
       {step === "date" && (
@@ -297,6 +344,18 @@ export default function BookAppointmentPage() {
             </div>
           ) : (
             <DateCalendar openDates={dates} onChoose={chooseDate} />
+          )}
+          {barbers.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                setBarber(undefined);
+                setStep("barber");
+              }}
+              className="text-barber-teal self-start text-sm font-medium"
+            >
+              חזרה
+            </button>
           )}
         </div>
       )}

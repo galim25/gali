@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, Prisma } from "@barberbook/db";
-import { getSmsProvider, formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
+import { getSmsProvider, formatIsraelDate, formatIsraelTime, isServiceAllowedForBarber } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
@@ -208,11 +208,15 @@ export async function createManualAppointmentAction(
       const workDay = await tx.workDay.findUniqueOrThrow({
         where: { id: input.work_day_id },
         include: {
+          barber: { select: { is_primary: true } },
           breaks: true,
           blocked_times: true,
           appointments: { where: { status: "scheduled" } },
         },
       });
+      if (!isServiceAllowedForBarber(workDay.barber.is_primary, service.name)) {
+        throw new Error("SERVICE_NOT_OFFERED");
+      }
       const busy: Interval[] = [
         ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
         ...workDay.blocked_times.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
@@ -253,6 +257,9 @@ export async function createManualAppointmentAction(
     }
     if (err instanceof Error && err.message === "ATTENDEE_NAME_REQUIRED") {
       return { error: "יש להזין את שם הילד/ה" };
+    }
+    if (err instanceof Error && err.message === "SERVICE_NOT_OFFERED") {
+      return { error: "השירות הזה לא זמין אצל הספר הזה" };
     }
     return { error: "לא ניתן היה לשמור את התור, נסה/י שוב" };
   }
