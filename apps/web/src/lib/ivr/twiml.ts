@@ -48,18 +48,3 @@ export function sayAndHangup(text: string): NextResponse {
   r.hangup();
   return xmlResponse(r);
 }
-
-/** Fallback for "anything that isn't a new booking" (§2 decision 11) and every no-input/no-match safety net in flow.ts. */
-export function transferToBarber(text?: string): NextResponse {
-  const number = process.env.IVR_TRANSFER_NUMBER;
-  const r = new VoiceResponse();
-  if (text) r.say({ language: VOICE_LANG }, text);
-  if (!number) {
-    // Misconfiguration safety net — never leave the caller stuck with silence.
-    r.say({ language: VOICE_LANG }, "מצטערים, לא ניתן להעביר את השיחה כרגע.");
-    r.hangup();
-    return xmlResponse(r);
-  }
-  r.dial(number);
-  return xmlResponse(r);
-}

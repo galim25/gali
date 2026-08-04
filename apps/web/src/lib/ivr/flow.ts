@@ -6,7 +6,7 @@ import { getServices, getOpenDates, getSlotsForDate, getEarliestAvailability } f
 import { registerUserCore } from "@/lib/actions/registerCore";
 import { identifyCaller, generateRandomPassword } from "@/lib/ivr/identifyCaller";
 import { bookViaPhone } from "@/lib/ivr/bookViaPhone";
-import { sayAndGatherDigits, sayAndGatherSpeech, sayAndHangup, transferToBarber } from "@/lib/ivr/twiml";
+import { sayAndGatherDigits, sayAndGatherSpeech, sayAndHangup } from "@/lib/ivr/twiml";
 import { getCallState, setCallState, clearCallState, type CallState } from "@/lib/ivr/callState";
 
 const MAX_MENU_OPTIONS = 9;
@@ -38,7 +38,7 @@ export async function startCall(callSid: string, from: string | null): Promise<N
       user_id: identity.user_id,
       customer_name: identity.full_name,
       name_attempts: 0,
-      no_input_attempts: 0,
+      invalid_attempts: 0,
     };
     setCallState(callSid, state);
     return renderBarberStep(callSid, state, `שלום ${identity.full_name}, בואו נקבע לך תור. `);
@@ -49,7 +49,7 @@ export async function startCall(callSid: string, from: string | null): Promise<N
     step: "register_name",
     phone_number: identity.phone_number,
     name_attempts: 0,
-    no_input_attempts: 0,
+    invalid_attempts: 0,
   });
   return sayAndGatherSpeech("שלום, זו הפעם הראשונה שאת/ה מתקשר/ת בקו הזה. מה שמך המלא?");
 }
@@ -63,22 +63,18 @@ export async function continueCall(
   const state = getCallState(callSid);
   if (!state) {
     // Lost state (process restart mid-call, or a stray/duplicate request) —
-    // no context to recover, hand off live rather than loop forever.
-    return transferToBarber("מצטערים, אירעה תקלה. מעביר/ה אותך לספר.");
+    // no context to recover; apologize and end the call rather than loop.
+    clearCallState(callSid);
+    return sayAndHangup("מצטערים, אירעה תקלה. אנא נסו לחייג שוב.");
   }
 
   const hasInput = digits.trim() !== "" || speechResult.trim() !== "";
   if (!hasInput) {
-    // General no-input convention (§7 preamble): repeat once, then transfer.
-    state.no_input_attempts += 1;
-    if (state.no_input_attempts > 1) {
-      clearCallState(callSid);
-      return transferToBarber();
+    if (state.step === "register_name" || state.step === "register_confirm") {
+      return handleRegistrationNoInput(callSid, state);
     }
-    setCallState(callSid, state);
-    return renderStep(callSid, state, "לא התקבל קלט. ");
+    return handleMenuFailure(callSid, state);
   }
-  state.no_input_attempts = 0;
 
   switch (state.step) {
     case "register_name":
@@ -98,39 +94,51 @@ export async function continueCall(
     case "book_more":
       return handleBookMore(callSid, state, digits);
     default:
-      return transferToBarber();
+      clearCallState(callSid);
+      return sayAndHangup("מצטערים, אירעה תקלה.");
   }
 }
 
-/** Re-renders the prompt for the current step (used to repeat after a no-input timeout). */
-async function renderStep(callSid: string, state: CallState, prefix = ""): Promise<NextResponse> {
-  switch (state.step) {
-    case "register_name":
-      return sayAndGatherSpeech(prefix + "מה שמך המלא?");
-    case "register_confirm":
-      return sayAndGatherDigits(prefix + `שמעתי ${state.pending_name}, נכון? הקש 1 לאישור, 2 לניסיון נוסף.`);
-    case "barber":
-      return renderBarberStep(callSid, state, prefix);
-    case "service":
-      return renderServiceStep(callSid, state, prefix);
-    case "slot_offer":
-      return renderSlotOfferStep(callSid, state, prefix);
-    case "day_pick":
-      return renderDayPickStep(callSid, state, prefix);
-    case "time_pick":
-      return renderTimePickStep(state, prefix);
-    case "book_more":
-      return sayAndGatherDigits(prefix + "לקביעת תור נוסף באותה שיחה הקש 1, לסיום הקש 2.");
-    default:
-      return transferToBarber();
+/**
+ * Unified "wrong key" policy for every post-identification step (no more
+ * live transfer, per explicit decision 2026-08-04 superseding §2 decision
+ * #11 of docs/# IVR BarberBook.txt): 1st consecutive failure (no input, or
+ * a digit that doesn't map to any offered option) announces the mistake and
+ * resets to the main menu (barber selection); a 2nd consecutive failure
+ * right after that hangs up. Any valid choice resets the counter to 0 (see
+ * each handle*Choice's success branch).
+ */
+async function handleMenuFailure(callSid: string, state: CallState): Promise<NextResponse> {
+  state.invalid_attempts += 1;
+  if (state.invalid_attempts > 1) {
+    clearCallState(callSid);
+    return sayAndHangup("מצטערים, לא הצלחנו להבין את הבחירה. להתראות.");
   }
+
+  state.barber_id = undefined;
+  state.service_id = undefined;
+  state.is_child_service = undefined;
+  state.step = "barber";
+  setCallState(callSid, state);
+  return renderBarberStep(callSid, state, "הפעולה שביצעת אינה תקינה. נחזיר אותך לתפריט הראשי. ");
 }
 
 // ---- Step 2: new-caller registration (§7 step 2) ----
 
+async function handleRegistrationNoInput(callSid: string, state: CallState): Promise<NextResponse> {
+  state.name_attempts += 1;
+  if (state.name_attempts >= MAX_NAME_ATTEMPTS) {
+    clearCallState(callSid);
+    return sayAndHangup("לא הצלחנו לזהות את שמך. להתראות.");
+  }
+  state.step = "register_name";
+  setCallState(callSid, state);
+  return sayAndGatherSpeech("לא התקבל קלט. מה שמך המלא?");
+}
+
 async function handleRegisterName(callSid: string, state: CallState, speechResult: string): Promise<NextResponse> {
   const name = speechResult.trim();
-  if (!name) return renderStep(callSid, state, "לא הצלחתי לשמוע שם. ");
+  if (!name) return handleRegistrationNoInput(callSid, state);
 
   state.pending_name = name;
   state.step = "register_confirm";
@@ -153,7 +161,10 @@ async function handleRegisterConfirm(callSid: string, state: CallState, digits: 
     if (result.outcome === "phone_taken") {
       // Rare race — the number was registered elsewhere mid-call. Fall back to that account.
       const existing = await prisma.user.findUnique({ where: { phone_number: state.phone_number! } });
-      if (!existing) return transferToBarber();
+      if (!existing) {
+        clearCallState(callSid);
+        return sayAndHangup("מצטערים, אירעה תקלה. אנא נסו לחייג שוב.");
+      }
       user_id = existing.id;
       full_name = existing.full_name;
     } else {
@@ -163,20 +174,26 @@ async function handleRegisterConfirm(callSid: string, state: CallState, digits: 
 
     state.user_id = user_id;
     state.customer_name = full_name;
+    state.name_attempts = 0;
+    state.invalid_attempts = 0;
     state.step = "barber";
     setCallState(callSid, state);
     return renderBarberStep(callSid, state, "מעולה. ");
   }
 
-  // Any other digit counts as "not confirmed" — try capturing the name again.
-  state.name_attempts += 1;
-  if (state.name_attempts >= MAX_NAME_ATTEMPTS) {
-    clearCallState(callSid);
-    return transferToBarber("לא הצלחנו לזהות את שמך. מעביר/ה אותך לספר.");
+  if (digits === "2") {
+    state.name_attempts += 1;
+    if (state.name_attempts >= MAX_NAME_ATTEMPTS) {
+      clearCallState(callSid);
+      return sayAndHangup("לא הצלחנו לזהות את שמך. להתראות.");
+    }
+    state.step = "register_name";
+    setCallState(callSid, state);
+    return sayAndGatherSpeech("בואו ננסה שוב. מה שמך המלא?");
   }
-  state.step = "register_name";
-  setCallState(callSid, state);
-  return sayAndGatherSpeech("בואו ננסה שוב. מה שמך המלא?");
+
+  // Any other digit at this step is simply invalid input, not a "not confirmed" — ask again without spending a name attempt.
+  return sayAndGatherDigits(`בחירה לא תקינה. שמעתי ${state.pending_name}, נכון? הקש 1 לאישור, 2 לניסיון נוסף.`);
 }
 
 // ---- Step 3: barber selection (§7 step 3) ----
@@ -204,8 +221,9 @@ async function renderBarberStep(callSid: string, state: CallState, prefix = ""):
 
 async function handleBarberChoice(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   const chosen = state.barber_options?.[Number(digits) - 1];
-  if (!chosen) return renderBarberStep(callSid, state, "בחירה לא תקינה. ");
+  if (!chosen) return handleMenuFailure(callSid, state);
 
+  state.invalid_attempts = 0;
   state.barber_id = chosen.id;
   state.step = "service";
   setCallState(callSid, state);
@@ -231,8 +249,9 @@ async function renderServiceStep(callSid: string, state: CallState, prefix = "")
 
 async function handleServiceChoice(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   const chosen = state.service_options?.[Number(digits) - 1];
-  if (!chosen) return renderServiceStep(callSid, state, "בחירה לא תקינה. ");
+  if (!chosen) return handleMenuFailure(callSid, state);
 
+  state.invalid_attempts = 0;
   state.service_id = chosen.id;
   state.is_child_service = chosen.is_child_service;
   setCallState(callSid, state);
@@ -261,12 +280,14 @@ async function renderSlotOfferStep(callSid: string, state: CallState, prefix = "
 
 async function handleSlotOffer(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   if (digits === "1") {
+    state.invalid_attempts = 0;
     return finalizeBooking(callSid, state, state.offered_work_day_id!, state.offered_starts_at!);
   }
   if (digits === "2") {
+    state.invalid_attempts = 0;
     return renderDayPickStep(callSid, state);
   }
-  return renderSlotOfferStep(callSid, state, "בחירה לא תקינה. ");
+  return handleMenuFailure(callSid, state);
 }
 
 async function renderDayPickStep(callSid: string, state: CallState, prefix = ""): Promise<NextResponse> {
@@ -295,15 +316,16 @@ async function renderDayPickStep(callSid: string, state: CallState, prefix = "")
 
 async function handleDayPick(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   const chosen = state.day_options?.[Number(digits) - 1];
-  if (!chosen) return renderDayPickStep(callSid, state, "בחירה לא תקינה. ");
+  if (!chosen) return handleMenuFailure(callSid, state);
 
   const slots = await getSlotsForDate(chosen.work_day_id, state.service_id!);
   const limited = slots.slice(0, MAX_MENU_OPTIONS);
   if (limited.length === 0) {
-    // Availability changed between render and choice (race) — back to the day list.
+    // Availability changed between render and choice (race) — back to the day list, doesn't spend a menu-failure attempt.
     return renderDayPickStep(callSid, state, "מצטערים, היום הזה כבר לא זמין. ");
   }
 
+  state.invalid_attempts = 0;
   state.time_options = limited;
   state.offered_work_day_id = chosen.work_day_id;
   state.step = "time_pick";
@@ -319,8 +341,9 @@ async function renderTimePickStep(state: CallState, prefix = ""): Promise<NextRe
 
 async function handleTimePick(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   const chosen = state.time_options?.[Number(digits) - 1];
-  if (!chosen) return renderTimePickStep(state, "בחירה לא תקינה. ");
+  if (!chosen) return handleMenuFailure(callSid, state);
 
+  state.invalid_attempts = 0;
   return finalizeBooking(callSid, state, state.offered_work_day_id!, chosen);
 }
 
@@ -340,7 +363,7 @@ async function finalizeBooking(
   );
 
   if (result.outcome === "slot_taken") {
-    // §2 decision #14 — race condition: back to slot selection, not the whole flow.
+    // §2 decision #14 — race condition: back to slot selection, doesn't spend a menu-failure attempt.
     return renderSlotOfferStep(callSid, state, "מצטערים, השעה הזו נתפסה הרגע. ");
   }
   if (result.outcome === "error") {
@@ -361,6 +384,7 @@ async function finalizeBooking(
 
 async function handleBookMore(callSid: string, state: CallState, digits: string): Promise<NextResponse> {
   if (digits === "1") {
+    state.invalid_attempts = 0;
     state.barber_id = undefined;
     state.service_id = undefined;
     state.is_child_service = undefined;
@@ -368,7 +392,10 @@ async function handleBookMore(callSid: string, state: CallState, digits: string)
     setCallState(callSid, state);
     return renderBarberStep(callSid, state);
   }
+  if (digits === "2") {
+    clearCallState(callSid);
+    return sayAndHangup("תודה, להתראות.");
+  }
 
-  clearCallState(callSid);
-  return sayAndHangup("תודה, להתראות.");
+  return handleMenuFailure(callSid, state);
 }

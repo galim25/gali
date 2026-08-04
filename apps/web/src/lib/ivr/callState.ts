@@ -20,7 +20,8 @@ export type CallState = {
   phone_number?: string;
   pending_name?: string;
   name_attempts: number;
-  no_input_attempts: number;
+  /** Consecutive no-input/invalid-choice count, post-identification only (§7 general convention, updated 2026-08-04 — no more live transfer, see flow.ts's handleMenuFailure). Reset to 0 on any valid choice; a 2nd consecutive failure hangs up. */
+  invalid_attempts: number;
   barber_id?: string;
   barber_options?: BarberOption[];
   service_id?: string;
@@ -36,9 +37,9 @@ export type CallState = {
  * Same in-memory-Map precedent as rateLimit.ts (apps/web/src/lib/rateLimit.ts)
  * — the architecture (CLAUDE.md) runs a single Next.js container, so a
  * process-local Map keyed by Twilio's CallSid is enough; it won't survive a
- * restart mid-call (continueCall's "state not found" branch in flow.ts
- * hands off to the barber live rather than crash) and won't coordinate
- * across replicas if this ever scales horizontally.
+ * restart mid-call (continueCall's "state not found" branch in flow.ts hangs
+ * up with an apology rather than crash) and won't coordinate across replicas
+ * if this ever scales horizontally.
  */
 const calls = new Map<string, CallState>();
 
