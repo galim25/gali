@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Rubik } from "next/font/google";
+import { SerwistProvider } from "@serwist/next/react";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import "./globals.css";
 
 const rubik = Rubik({ subsets: ["hebrew", "latin"], weight: ["400", "500", "700"] });
@@ -16,6 +18,15 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BarberBook",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#508186",
 };
 
 export default function RootLayout({
@@ -25,7 +36,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.className} h-full antialiased`}>
-      <body className="bg-cream min-h-full flex flex-col">{children}</body>
+      <body className="bg-cream min-h-full flex flex-col">
+        <SerwistProvider swUrl="/sw.js" disable={process.env.NODE_ENV !== "production"}>
+          {children}
+          <InstallPrompt />
+        </SerwistProvider>
+      </body>
     </html>
   );
 }
