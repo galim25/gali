@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { getBarbersAdmin } from "@/lib/actions/barbers";
 import { AddBarberForm } from "./AddBarberForm";
 import { BarberActiveToggle } from "./BarberActiveToggle";
+import { DeleteBarberButton } from "./DeleteBarberButton";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminBrandHero } from "@/components/AdminBrandHero";
 
@@ -27,17 +28,24 @@ export default async function BarbersPage() {
           {barbers.map((b) => (
             <li
               key={b.id}
-              className="border-barber-teal bg-white flex items-center justify-between rounded-xl border p-3 text-sm"
+              className="border-barber-teal bg-white flex flex-col gap-2 rounded-xl border p-3 text-sm"
             >
-              <p className="text-ink font-bold">
-                {b.full_name}
-                {b.is_primary && (
-                  <span className="bg-barber-teal text-cream-text mr-2 rounded-full px-2 py-0.5 text-xs font-medium">
-                    ספר ראשי
-                  </span>
-                )}
-              </p>
-              <BarberActiveToggle barberId={b.id} initialValue={b.is_active} isPrimary={b.is_primary} />
+              <div className="flex items-center justify-between">
+                <p className="text-ink font-bold">
+                  {b.full_name}
+                  {b.is_primary && (
+                    <span className="bg-barber-teal text-cream-text mr-2 rounded-full px-2 py-0.5 text-xs font-medium">
+                      ספר ראשי
+                    </span>
+                  )}
+                </p>
+                <BarberActiveToggle barberId={b.id} initialValue={b.is_active} isPrimary={b.is_primary} />
+              </div>
+              {!b.is_primary && (
+                <div className="flex justify-end">
+                  <DeleteBarberButton barberId={b.id} barberName={b.full_name} />
+                </div>
+              )}
             </li>
           ))}
         </ul>

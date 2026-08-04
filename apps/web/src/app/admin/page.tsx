@@ -12,6 +12,7 @@ import { DeleteAllWorkDaysButton } from "./DeleteAllWorkDaysButton";
 import { BlockDayToggle } from "./day/[id]/BlockDayToggle";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminBrandHero } from "@/components/AdminBrandHero";
+import { AdminMenu } from "@/components/AdminMenu";
 
 function formatWorkDate(d: Date) {
   return d.toLocaleDateString("he-IL", {
@@ -50,67 +51,29 @@ export default async function AdminPage({
   return (
     <main dir="rtl" className="bg-cream mx-auto flex min-h-screen max-w-md flex-col gap-4 p-6">
       <PageHeader title={`היי ${session.full_name}`} topBanner={<AdminBrandHero />} />
-      <div className="flex flex-wrap justify-center gap-2">
-        <Link
-          href="/admin/booking-requests"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          בקשות תורים{pendingBookingRequests > 0 && ` (${pendingBookingRequests})`}
-        </Link>
-        <Link
-          href="/admin/cancellation-requests"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          בקשות ביטול{pendingCancellations > 0 && ` (${pendingCancellations})`}
-        </Link>
-        <Link
-          href="/admin/notifications"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          התראות{unreadNotifications > 0 && ` (${unreadNotifications})`}
-        </Link>
-        <Link
-          href="/admin/blocked-customers"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          לקוחות חסומים
-        </Link>
-        <Link
-          href="/admin/waitlist"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          רשימת המתנה
-        </Link>
-        <Link
-          href="/admin/announcements"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          הודעות כלליות
-        </Link>
-        <Link
-          href="/admin/settings"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          הגדרות
-        </Link>
-        <Link
-          href="/admin/barbers"
-          className="border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
-        >
-          ניהול ספרים
-        </Link>
-      </div>
+      <AdminMenu
+        items={[
+          { href: "/admin/booking-requests", label: "בקשות תורים", count: pendingBookingRequests },
+          { href: "/admin/cancellation-requests", label: "בקשות ביטול", count: pendingCancellations },
+          { href: "/admin/notifications", label: "התראות", count: unreadNotifications },
+          { href: "/admin/blocked-customers", label: "לקוחות חסומים" },
+          { href: "/admin/waitlist", label: "רשימת המתנה" },
+          { href: "/admin/announcements", label: "הודעות כלליות" },
+          { href: "/admin/settings", label: "הגדרות" },
+          { href: "/admin/barbers", label: "ניהול ספרים" },
+        ]}
+      />
 
       {barbers.length > 1 && (
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-start gap-2">
           {barbers.map((b) => (
             <Link
               key={b.id}
               href={`/admin?barber=${b.id}`}
               className={
                 b.id === selectedBarber.id
-                  ? "bg-barber-teal text-cream-text rounded-full px-3 py-1 text-sm font-medium"
-                  : "border-barber-teal text-barber-teal rounded-full border px-3 py-1 text-sm font-medium"
+                  ? "bg-barber-teal text-cream-text rounded-full px-4 py-2 text-sm font-medium"
+                  : "border-barber-teal text-barber-teal rounded-full border px-4 py-2 text-sm font-medium"
               }
             >
               {b.full_name}
