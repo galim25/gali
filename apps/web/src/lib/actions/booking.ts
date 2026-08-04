@@ -11,6 +11,7 @@ import { findAvailableSlots, isSlotAvailable, type Interval } from "@/lib/availa
 import { runSerializable } from "@/lib/serializableTransaction";
 import { notifyAdminsOfNewBooking } from "@/lib/notifyAdmin";
 import { getRequiresApproval } from "@/lib/actions/settings";
+import { bookAppointmentCore } from "@/lib/actions/bookingCore";
 
 export type ServiceOption = {
   id: string;
@@ -89,6 +90,28 @@ export async function getSlotsForDate(
     .map((d) => d.toISOString());
 }
 
+export type EarliestAvailability = { work_day_id: string; starts_at: string };
+
+/**
+ * The IVR's "here's the soonest open time, press 1 to confirm" step (see
+ * docs/# IVR BarberBook.txt §2 decision 6) — walks getOpenDates in order
+ * and returns the first slot of the first day that has one. No new slot
+ * math: reuses getOpenDates/getSlotsForDate as-is.
+ */
+export async function getEarliestAvailability(
+  barber_id: string,
+  service_id: string,
+): Promise<EarliestAvailability | null> {
+  const openDates = await getOpenDates(barber_id);
+  for (const day of openDates) {
+    const slots = await getSlotsForDate(day.work_day_id, service_id);
+    if (slots.length > 0) {
+      return { work_day_id: day.work_day_id, starts_at: slots[0] };
+    }
+  }
+  return null;
+}
+
 type CreateAppointmentInput = {
   work_day_id: string;
   service_id: string;
@@ -114,73 +137,11 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
   const requiresApproval = await getRequiresApproval();
 
   try {
-    const booked = await runSerializable(async (tx) => {
-      const service = await tx.service.findUniqueOrThrow({ where: { id: input.service_id } });
-      const workDay = await tx.workDay.findUniqueOrThrow({
-        where: { id: input.work_day_id },
-        include: {
-          barber: { select: { is_primary: true } },
-          breaks: true,
-          blocked_times: true,
-          appointments: { where: { status: "scheduled" } },
-        },
-      });
-      if (workDay.is_blocked) {
-        throw new Error("DAY_BLOCKED");
-      }
-      if (!isServiceAllowedForBarber(workDay.barber.is_primary, service.name)) {
-        throw new Error("SERVICE_NOT_OFFERED");
-      }
-      const busy: Interval[] = [
-        ...workDay.breaks.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
-        ...workDay.blocked_times.map((b) => ({ starts_at: b.starts_at, ends_at: b.ends_at })),
-        ...workDay.appointments.map((a) => ({ starts_at: a.starts_at, ends_at: a.ends_at })),
-      ];
-
-      const starts_at = new Date(input.starts_at);
-      if (starts_at < new Date()) {
-        throw new Error("PAST_SLOT");
-      }
-      const ok = isSlotAvailable(
-        starts_at,
-        service.duration_minutes,
-        { starts_at: workDay.starts_at, ends_at: workDay.ends_at },
-        busy,
-      );
-      if (!ok) {
-        throw new Error("SLOT_TAKEN");
-      }
-
-      const attendee_name = input.attendee_name?.trim();
-      if (service.is_child_service && !attendee_name) {
-        throw new Error("ATTENDEE_NAME_REQUIRED");
-      }
-
-      const appointment = await tx.appointment.create({
-        data: {
-          work_day_id: input.work_day_id,
-          service_id: input.service_id,
-          booked_by_user_id: session.sub,
-          customer_name: session.full_name,
-          attendee_name: service.is_child_service ? attendee_name! : session.full_name,
-          attendee_type: service.is_child_service ? "child" : "self",
-          starts_at,
-          ends_at: new Date(starts_at.getTime() + service.duration_minutes * 60_000),
-          status: "scheduled",
-        },
-      });
-
-      if (requiresApproval) {
-        await tx.bookingRequest.create({ data: { appointment_id: appointment.id } });
-      }
-
-      return {
-        appointment_id: appointment.id,
-        service_name: service.name,
-        customer_name: session.full_name,
-        starts_at,
-      };
-    });
+    const booked = await bookAppointmentCore(
+      input,
+      { user_id: session.sub, customer_name: session.full_name },
+      requiresApproval,
+    );
 
     if (requiresApproval) {
       return { success: true, pendingApproval: true };

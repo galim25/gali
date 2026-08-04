@@ -7,6 +7,7 @@ import { getSmsProvider, PASSWORD_RESET_CODE_TTL_MINUTES } from "@barberbook/sha
 import { createSession, destroySession } from "@/lib/auth/session";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { registerUserCore } from "@/lib/actions/registerCore";
 import {
   registerSchema,
   loginSchema,
@@ -31,26 +32,15 @@ export async function registerAction(_prev: ActionState, formData: FormData): Pr
   }
   const { full_name, phone_number, password } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { phone_number } });
-  if (existing) {
+  const result = await registerUserCore(full_name, phone_number, password);
+  if (result.outcome === "phone_taken") {
     return { error: "מספר הטלפון כבר רשום במערכת" };
   }
-
-  const blocked = await prisma.blockedPhoneNumber.findUnique({ where: { phone_number } });
-  if (blocked) {
+  if (result.outcome === "blocked") {
     return { error: "לא ניתן להירשם עם מספר טלפון זה" };
   }
 
-  const user = await prisma.user.create({
-    data: {
-      full_name,
-      phone_number,
-      password_hash: await hashPassword(password),
-      role: "customer",
-    },
-  });
-
-  await createSession({ sub: user.id, role: user.role, full_name: user.full_name });
+  await createSession({ sub: result.user_id, role: "customer", full_name });
   redirect("/account");
 }
 
