@@ -3,18 +3,26 @@ import { prisma } from "@barberbook/db";
 import { PHONE_NUMBER_REGEX } from "@barberbook/shared";
 
 /**
- * Twilio's `From` on an incoming call is E.164 (+972501234567); every
- * phone_number in the DB is local Israeli format (0501234567, see
- * PHONE_NUMBER_REGEX) — this is the one place that bridges the two. A
- * non-+972 caller ID returns null (out of scope, same Israeli-numbers-only
- * assumption the rest of the app already makes via PHONE_NUMBER_REGEX).
+ * Every phone_number in the DB is local Israeli format (0501234567, see
+ * PHONE_NUMBER_REGEX). Yemot HaMashiach is an Israeli-only platform, so
+ * ApiPhone is expected to already arrive in that same local format — unlike
+ * Twilio's E.164 `From`, which needed a real conversion. ⚠️ UNVERIFIED
+ * against a real call (docs/# IVR BarberBook.txt "סטטוס" / §2 decision #13)
+ * — falls back to stripping a 972/+972 prefix defensively in case Yemot
+ * sends it E.164-style after all. Confirm and simplify once decision #19's
+ * line is live.
  */
-export function e164ToIsraeliLocal(from: string | null | undefined): string | null {
-  if (!from) return null;
-  const match = /^\+972(\d{8,9})$/.exec(from);
-  if (!match) return null;
-  const local = `0${match[1]}`;
-  return PHONE_NUMBER_REGEX.test(local) ? local : null;
+export function normalizeYemotPhone(apiPhone: string | null | undefined): string | null {
+  if (!apiPhone) return null;
+  const trimmed = apiPhone.trim();
+  if (PHONE_NUMBER_REGEX.test(trimmed)) return trimmed;
+
+  const intlMatch = /^\+?972(\d{8,9})$/.exec(trimmed);
+  if (intlMatch) {
+    const local = `0${intlMatch[1]}`;
+    if (PHONE_NUMBER_REGEX.test(local)) return local;
+  }
+  return null;
 }
 
 export type CallerIdentity =
@@ -24,8 +32,8 @@ export type CallerIdentity =
   | { outcome: "new_caller"; phone_number: string };
 
 /** §7 step 1 of docs/# IVR BarberBook.txt — decisions #12/#13. */
-export async function identifyCaller(from: string | null | undefined): Promise<CallerIdentity> {
-  const phone_number = e164ToIsraeliLocal(from);
+export async function identifyCaller(apiPhone: string | null | undefined): Promise<CallerIdentity> {
+  const phone_number = normalizeYemotPhone(apiPhone);
   if (!phone_number) return { outcome: "no_caller_id" };
 
   const blocked = await prisma.blockedPhoneNumber.findUnique({ where: { phone_number } });

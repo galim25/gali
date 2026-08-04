@@ -36,7 +36,7 @@ export type CallState = {
 /**
  * Same in-memory-Map precedent as rateLimit.ts (apps/web/src/lib/rateLimit.ts)
  * — the architecture (CLAUDE.md) runs a single Next.js container, so a
- * process-local Map keyed by Twilio's CallSid is enough; it won't survive a
+ * process-local Map keyed by Yemot's ApiCallId is enough; it won't survive a
  * restart mid-call (continueCall's "state not found" branch in flow.ts hangs
  * up with an apology rather than crash) and won't coordinate across replicas
  * if this ever scales horizontally.
@@ -45,16 +45,16 @@ const calls = new Map<string, CallState>();
 
 const MAX_TRACKED_CALLS = 500;
 
-export function getCallState(callSid: string): CallState | undefined {
-  return calls.get(callSid);
+export function getCallState(apiCallId: string): CallState | undefined {
+  return calls.get(apiCallId);
 }
 
-export function setCallState(callSid: string, state: CallState): CallState {
-  if (!calls.has(callSid) && calls.size >= MAX_TRACKED_CALLS) calls.clear();
-  calls.set(callSid, state);
+export function setCallState(apiCallId: string, state: CallState): CallState {
+  if (!calls.has(apiCallId) && calls.size >= MAX_TRACKED_CALLS) calls.clear();
+  calls.set(apiCallId, state);
   return state;
 }
 
-export function clearCallState(callSid: string): void {
-  calls.delete(callSid);
+export function clearCallState(apiCallId: string): void {
+  calls.delete(apiCallId);
 }
