@@ -31,6 +31,23 @@ function weekdayDate(d: Date): string {
   return d.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", timeZone: ISRAEL_TIME_ZONE });
 }
 
+/**
+ * IVR-only natural-speech time (2026-08-08, caller feedback — a bare
+ * "13:10" was read with no relation between the hour and minute numbers).
+ * Reuses formatIsraelTime's "HH:MM" (shared with SMS/UI text elsewhere,
+ * left untouched) and re-renders as "{hour} ו{minute} דקות" — minutes
+ * dropped entirely on the hour. Converts to 12-hour (13 → 1) to match how a
+ * Hebrew speaker actually reads a clock time aloud ("אחת ועשר דקות", not
+ * "שלוש עשרה ועשר דקות") — the shop only ever operates in daytime/evening
+ * hours, so the resulting AM/PM ambiguity isn't a real-world problem here.
+ */
+function speakTime(d: Date): string {
+  const [hourStr, minuteStr] = formatIsraelTime(d).split(":");
+  const hour12 = Number(hourStr) % 12 === 0 ? 12 : Number(hourStr) % 12;
+  const minute = Number(minuteStr);
+  return minute === 0 ? `${hour12}` : `${hour12} וְ ${minute} דַקוֹת`;
+}
+
 /** §7 step 1 — the very first webhook of an incoming call. */
 export async function startCall(apiCallId: string, apiPhone: string | null): Promise<NextResponse> {
   const identity = await identifyCaller(apiPhone);
@@ -193,7 +210,10 @@ async function handleRegisterConfirm(apiCallId: string, state: CallState, digits
     state.invalid_attempts = 0;
     state.step = "barber";
     setCallState(apiCallId, state);
-    return renderBarberStep(apiCallId, state, "מְעֻלֶה. ");
+    // Left un-vocalized deliberately (2026-08-08) — nikud + a meteg stress
+    // mark were tried here to fix "מעולה" coming out stressed wrong, but the
+    // caller reported the plain unvocalized word actually sounded better.
+    return renderBarberStep(apiCallId, state, "מעולה. ");
   }
 
   if (digits === "2") {
@@ -219,7 +239,7 @@ async function renderBarberStep(apiCallId: string, state: CallState, prefix = ""
   const barbers = await getActiveBarbers();
   if (barbers.length === 0) {
     clearCallState(apiCallId);
-    return sayAndHangup(prefix + "מצטערים, אין כרגע ספרים זמינים לקביעת תור.");
+    return sayAndHangup([prefix, "מצטערים, אין כרגע ספרים זמינים לקביעת תור."]);
   }
   if (barbers.length === 1) {
     state.barber_id = barbers[0].id;
@@ -233,7 +253,7 @@ async function renderBarberStep(apiCallId: string, state: CallState, prefix = ""
   state.step = "barber";
   setCallState(apiCallId, state);
   const text = limited.map((b, i) => `ל${b.full_name} הַקֵשׁ ${i + 1}`).join(", ") + ".";
-  return sayAndGatherDigits(prefix + "לִקְבִיעָה אֵצֶל " + text);
+  return sayAndGatherDigits([prefix, "לִקְבִיעָה אֵצֶל " + text]);
 }
 
 async function handleBarberChoice(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -268,11 +288,21 @@ const SERVICE_NAME_SPEECH: Record<string, string> = {
   "תספורת מבוגר + טיפול לייזר": "תִסְפֹרֶת מְבֻגָר וְטִיפוּל לֵיזֶר",
 };
 
+/**
+ * 2026-08-08, explicit user request: the phone menu offers a reduced set of
+ * services vs. the full list in the app/admin — IVR-only restriction, does
+ * not touch the `services` table, the admin UI, or the app's own booking
+ * flow (those still offer all services). A service renamed to something not
+ * in this list would simply stop being offered over the phone.
+ */
+const IVR_SERVICE_WHITELIST = new Set(["תספורת מבוגר", "תספורת + זקן", "תספורת ילד"]);
+
 async function renderServiceStep(apiCallId: string, state: CallState, prefix = ""): Promise<NextResponse> {
-  const services = await getServices(state.barber_id!);
+  const allServices = await getServices(state.barber_id!);
+  const services = allServices.filter((s) => IVR_SERVICE_WHITELIST.has(s.name));
   if (services.length === 0) {
     clearCallState(apiCallId);
-    return sayAndHangup(prefix + "מצטערים, אין כרגע שירותים זמינים.");
+    return sayAndHangup([prefix, "מצטערים, אין כרגע שירותים זמינים."]);
   }
 
   const limited = services.slice(0, MAX_MENU_OPTIONS);
@@ -281,7 +311,7 @@ async function renderServiceStep(apiCallId: string, state: CallState, prefix = "
   setCallState(apiCallId, state);
   const text =
     limited.map((s, i) => `ל${SERVICE_NAME_SPEECH[s.name] ?? s.name} הַקֵשׁ ${i + 1}`).join(", ") + ".";
-  return sayAndGatherDigits(prefix + text);
+  return sayAndGatherDigits([prefix, text]);
 }
 
 async function handleServiceChoice(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -302,7 +332,7 @@ async function renderSlotOfferStep(apiCallId: string, state: CallState, prefix =
   if (!earliest) {
     // §2 decision #15 — no availability at all: apologize and hang up, no waitlist/transfer.
     clearCallState(apiCallId);
-    return sayAndHangup(prefix + "מצטערים, אין כרגע תורים פנויים. נסו שוב מאוחר יותר.");
+    return sayAndHangup([prefix, "מצטערים, אין כרגע תורים פנויים. נסו שוב מאוחר יותר."]);
   }
 
   state.offered_work_day_id = earliest.work_day_id;
@@ -311,8 +341,9 @@ async function renderSlotOfferStep(apiCallId: string, state: CallState, prefix =
   setCallState(apiCallId, state);
 
   const d = new Date(earliest.starts_at);
-  const text = `הַתוֹר הַקָרוֹב בְיוֹתֵר הוא ${weekdayDate(d)} בְשָׁעָה ${formatIsraelTime(d)}. לְאִישׁור הַקֵשׁ 1, לִבְחִירַת יוֹם אַחֵר הַקֵשׁ 2, לִבְחִירַת שָׁעָה אַחֶרֶת בְאוֹתוֹ הַיוֹם הַקֵשׁ 3.`;
-  return sayAndGatherDigits(prefix + text);
+  const statement = `הַתוֹר הַקָרוֹב בְיוֹתֵר הוא ${weekdayDate(d)} בְשָׁעָה ${speakTime(d)}.`;
+  const menu = `לְאִישׁור הַקֵשׁ 1, לִבְחִירַת יוֹם אַחֵר הַקֵשׁ 2, לִבְחִירַת שָׁעָה אַחֶרֶת בְאוֹתוֹ הַיוֹם הַקֵשׁ 3.`;
+  return sayAndGatherDigits([prefix, statement, menu]);
 }
 
 async function handleSlotOffer(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -347,7 +378,7 @@ async function renderDayPickStep(apiCallId: string, state: CallState, prefix = "
 
   if (withAvailability.length === 0) {
     clearCallState(apiCallId);
-    return sayAndHangup(prefix + "מצטערים, אין כרגע תורים פנויים. נסו שוב מאוחר יותר.");
+    return sayAndHangup([prefix, "מצטערים, אין כרגע תורים פנויים. נסו שוב מאוחר יותר."]);
   }
 
   state.day_options = withAvailability;
@@ -357,7 +388,7 @@ async function renderDayPickStep(apiCallId: string, state: CallState, prefix = "
     withAvailability
       .map((d, i) => `ל${weekdayDate(new Date(`${d.work_date}T00:00:00Z`))} הַקֵשׁ ${i + 1}`)
       .join(", ") + ".";
-  return sayAndGatherDigits(prefix + "לִרְשִׁימַת הַיָמִים הַפְתוחִים: " + text);
+  return sayAndGatherDigits([prefix, "לִרְשִׁימַת הַיָמִים הַפְתוחִים: " + text]);
 }
 
 async function handleDayPick(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -432,7 +463,7 @@ async function renderTimeOrPeriodStep(
     bucketed
       .map(
         (b, i) =>
-          `ל${DAY_PERIOD_LABELS_NIKUD[b.key]} בֵין הַשָׁעוֹת ${formatIsraelTime(b.starts_at)} עַד ${formatIsraelTime(b.ends_at)} הַקֵשׁ ${i + 1}`,
+          `ל${DAY_PERIOD_LABELS_NIKUD[b.key]} בֵין הַשָׁעוֹת ${speakTime(b.starts_at)} עַד ${speakTime(b.ends_at)} הַקֵשׁ ${i + 1}`,
       )
       .join(", ") + ".";
   // "תרצה/י" avoided (the "/" gets read aloud as division, same bug as
@@ -453,8 +484,8 @@ async function handlePeriodPick(apiCallId: string, state: CallState, digits: str
 
 async function renderTimePickStep(state: CallState, prefix = ""): Promise<NextResponse> {
   const text =
-    (state.time_options ?? []).map((s, i) => `${formatIsraelTime(new Date(s))} הַקֵשׁ ${i + 1}`).join(", ") + ".";
-  return sayAndGatherDigits(prefix + text);
+    (state.time_options ?? []).map((s, i) => `${speakTime(new Date(s))} הַקֵשׁ ${i + 1}`).join(", ") + ".";
+  return sayAndGatherDigits([prefix, text]);
 }
 
 async function handleTimePick(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -492,11 +523,15 @@ async function finalizeBooking(
   // "תקבל/י" avoided (same "/" TTS-reads-as-division bug) — passive voice sidesteps the gendered pronoun entirely.
   const confirmText = result.pendingApproval
     ? "הַתוֹר שֶׁלְךָ נִשְׁמַר ומַמְתִין לְאִישׁור הַסַפָר, תִשָׁלַח הוֹדָעָה כְשֶׁהוא יְאַשֵׁר."
-    : `מְעֻלֶה, הַתוֹר נִקְבַע לְ${weekdayDate(d)} בְשָׁעָה ${formatIsraelTime(d)}.`;
+    : `מעולה, הַתוֹר נִקְבַע לְ${weekdayDate(d)} בְשָׁעָה ${speakTime(d)}.`;
+  const bookMoreMenu = "לִקְבִיעַת תוֹר נוֹסָף בְאוֹתָה שִׂיחָה הַקֵשׁ 1, לְסִיום הַקֵשׁ 2.";
 
   state.step = "book_more";
   setCallState(apiCallId, state);
-  return sayAndGatherDigits(`${confirmText} לִקְבִיעַת תוֹר נוֹסָף בְאוֹתָה שִׂיחָה הַקֵשׁ 1, לְסִיום הַקֵשׁ 2.`);
+  // Split into two segments (2026-08-08 caller feedback) so there's an
+  // actual gap between "the appointment is set" and "press 1 for another" —
+  // see buildSegments() in yemotResponse.ts.
+  return sayAndGatherDigits([confirmText, bookMoreMenu]);
 }
 
 // ---- Step 8: another appointment in the same call? (§7 step 8) ----
