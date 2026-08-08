@@ -9,7 +9,7 @@ import {
   getEarliestAvailability,
   getWorkDayInterval,
 } from "@/lib/actions/booking";
-import { getDayPeriods } from "@/lib/availability";
+import { getDayPeriods, DAY_PERIOD_LABELS_NIKUD } from "@/lib/availability";
 import { registerUserCore } from "@/lib/actions/registerCore";
 import { identifyCaller, generateRandomPassword } from "@/lib/ivr/identifyCaller";
 import { bookViaPhone } from "@/lib/ivr/bookViaPhone";
@@ -20,17 +20,15 @@ const MAX_MENU_OPTIONS = 9;
 const MAX_NAME_ATTEMPTS = 2;
 
 /**
- * Deliberately not `d.toLocaleDateString("he-IL", { day, month, ... })` —
- * that locale renders numeric dates as "5.8", and yemotResponse.ts's
- * sanitize() strips periods (confirmed forbidden by Yemot's own response
- * syntax, see that file), which silently mangled it down to "58". Built by
- * hand with "/" instead, which sanitize() leaves untouched.
+ * 2026-08-08: was hand-built as "{weekday} {day}/{month}" (e.g. "יום ראשון
+ * 9/8") to dodge sanitize() stripping the period out of the locale's default
+ * numeric rendering (see git history) — but Yemot's TTS reads a bare "/" as
+ * division ("9 חלקי 8"), which is worse. `month: "long"` sidesteps both
+ * problems at once: he-IL already renders "{day} ב{month}" as natural
+ * spoken Hebrew (e.g. "9 באוגוסט"), no slash or period involved.
  */
 function weekdayDate(d: Date): string {
-  const weekday = d.toLocaleDateString("he-IL", { weekday: "long", timeZone: ISRAEL_TIME_ZONE });
-  const day = d.toLocaleDateString("he-IL", { day: "numeric", timeZone: ISRAEL_TIME_ZONE });
-  const month = d.toLocaleDateString("he-IL", { month: "numeric", timeZone: ISRAEL_TIME_ZONE });
-  return `${weekday} ${day}/${month}`;
+  return d.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", timeZone: ISRAEL_TIME_ZONE });
 }
 
 /** §7 step 1 — the very first webhook of an incoming call. */
@@ -53,7 +51,7 @@ export async function startCall(apiCallId: string, apiPhone: string | null): Pro
       invalid_attempts: 0,
     };
     setCallState(apiCallId, state);
-    return renderBarberStep(apiCallId, state, `שלום ${identity.full_name}, בואו נקבע לך תור. `);
+    return renderBarberStep(apiCallId, state, `שָׁלוֹם ${identity.full_name}, בוֹאו נִקְבַע לְךָ תוֹר. `);
   }
 
   // new_caller
@@ -63,7 +61,10 @@ export async function startCall(apiCallId: string, apiPhone: string | null): Pro
     name_attempts: 0,
     invalid_attempts: 0,
   });
-  return sayAndGatherSpeech("שלום, זו הפעם הראשונה שאת/ה מתקשר/ת בקו הזה. מה שמך המלא?");
+  // "שהתקשרת" (2nd-person past) is gender-neutral in Hebrew, unlike "את/ה
+  // מתקשר/ת" — also sidesteps the same "/" TTS-reads-as-division bug as
+  // weekdayDate (see below), since Yemot reads a bare slash aloud.
+  return sayAndGatherSpeech("שָׁלוֹם, זוֹ הַפַעַם הָרִאשׁוֹנָה שֶׁהִתְקַשַׁרְתָ לַקָו הַזֶה. מָה שִׁמְךָ הַמָלֵא?");
 }
 
 /** Every subsequent webhook of the same call (every `read=` response of §5/§6 points back at the same Yemot extension). */
@@ -157,7 +158,7 @@ async function handleRegisterName(apiCallId: string, state: CallState, speechRes
   state.pending_name = name;
   state.step = "register_confirm";
   setCallState(apiCallId, state);
-  return sayAndGatherDigits(`שמעתי ${name}, נכון? הקש 1 לאישור, 2 לניסיון נוסף.`);
+  return sayAndGatherDigits(`שָׁמַעְתִי ${name}, נָכוֹן? הַקֵשׁ 1 לְאִישׁור, 2 לְנִסָיוֹן נוֹסָף.`);
 }
 
 async function handleRegisterConfirm(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -192,7 +193,7 @@ async function handleRegisterConfirm(apiCallId: string, state: CallState, digits
     state.invalid_attempts = 0;
     state.step = "barber";
     setCallState(apiCallId, state);
-    return renderBarberStep(apiCallId, state, "מעולה. ");
+    return renderBarberStep(apiCallId, state, "מְעֻלֶה. ");
   }
 
   if (digits === "2") {
@@ -207,7 +208,9 @@ async function handleRegisterConfirm(apiCallId: string, state: CallState, digits
   }
 
   // Any other digit at this step is simply invalid input, not a "not confirmed" — ask again without spending a name attempt.
-  return sayAndGatherDigits(`בחירה לא תקינה. שמעתי ${state.pending_name}, נכון? הקש 1 לאישור, 2 לניסיון נוסף.`);
+  return sayAndGatherDigits(
+    `בְחִירָה לֹא תְקִינָה. שָׁמַעְתִי ${state.pending_name}, נָכוֹן? הַקֵשׁ 1 לְאִישׁור, 2 לְנִסָיוֹן נוֹסָף.`,
+  );
 }
 
 // ---- Step 3: barber selection (§7 step 3) ----
@@ -229,8 +232,8 @@ async function renderBarberStep(apiCallId: string, state: CallState, prefix = ""
   state.barber_options = limited.map((b) => ({ id: b.id, full_name: b.full_name }));
   state.step = "barber";
   setCallState(apiCallId, state);
-  const text = limited.map((b, i) => `ל${b.full_name} הקש ${i + 1}`).join(", ") + ".";
-  return sayAndGatherDigits(prefix + "לקביעה אצל " + text);
+  const text = limited.map((b, i) => `ל${b.full_name} הַקֵשׁ ${i + 1}`).join(", ") + ".";
+  return sayAndGatherDigits(prefix + "לִקְבִיעָה אֵצֶל " + text);
 }
 
 async function handleBarberChoice(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -246,6 +249,25 @@ async function handleBarberChoice(apiCallId: string, state: CallState, digits: s
 
 // ---- Step 4: service selection (§7 step 4) ----
 
+/**
+ * Service names are barber-managed data (`services` table), not code, so
+ * they can't carry nikud in the DB itself (that field is also shown as
+ * plain text in the admin UI). This is a TTS-only lookup, keyed on the
+ * exact current name — 2026-08-08, added after the caller reported this
+ * step specifically was hard to follow (rare word "חלאקה", loanword
+ * "לייזר", and "+" getting read literally as "plus"). A service not listed
+ * here (renamed, or newly added in admin) falls back to the plain DB name —
+ * unvocalized and with a literal "+", but still functional.
+ */
+const SERVICE_NAME_SPEECH: Record<string, string> = {
+  "הסרת שיער בלייזר": "הֲסָרַת שֵׂעָר בְּלֵיזֶר",
+  "חלאקה": "חֲלָאקָה",
+  "תספורת + זקן": "תִסְפֹרֶת וְזָקָן",
+  "תספורת ילד": "תִסְפֹרֶת יֶלֶד",
+  "תספורת מבוגר": "תִסְפֹרֶת מְבֻגָר",
+  "תספורת מבוגר + טיפול לייזר": "תִסְפֹרֶת מְבֻגָר וְטִיפוּל לֵיזֶר",
+};
+
 async function renderServiceStep(apiCallId: string, state: CallState, prefix = ""): Promise<NextResponse> {
   const services = await getServices(state.barber_id!);
   if (services.length === 0) {
@@ -257,7 +279,8 @@ async function renderServiceStep(apiCallId: string, state: CallState, prefix = "
   state.service_options = limited.map((s) => ({ id: s.id, name: s.name, is_child_service: s.is_child_service }));
   state.step = "service";
   setCallState(apiCallId, state);
-  const text = limited.map((s, i) => `ל${s.name} הקש ${i + 1}`).join(", ") + ".";
+  const text =
+    limited.map((s, i) => `ל${SERVICE_NAME_SPEECH[s.name] ?? s.name} הַקֵשׁ ${i + 1}`).join(", ") + ".";
   return sayAndGatherDigits(prefix + text);
 }
 
@@ -288,7 +311,7 @@ async function renderSlotOfferStep(apiCallId: string, state: CallState, prefix =
   setCallState(apiCallId, state);
 
   const d = new Date(earliest.starts_at);
-  const text = `התור הקרוב ביותר הוא יום ${weekdayDate(d)} בשעה ${formatIsraelTime(d)}. לאישור הקש 1, לבחירת יום אחר הקש 2, לבחירת שעה אחרת באותו היום הקש 3.`;
+  const text = `הַתוֹר הַקָרוֹב בְיוֹתֵר הוא ${weekdayDate(d)} בְשָׁעָה ${formatIsraelTime(d)}. לְאִישׁור הַקֵשׁ 1, לִבְחִירַת יוֹם אַחֵר הַקֵשׁ 2, לִבְחִירַת שָׁעָה אַחֶרֶת בְאוֹתוֹ הַיוֹם הַקֵשׁ 3.`;
   return sayAndGatherDigits(prefix + text);
 }
 
@@ -332,9 +355,9 @@ async function renderDayPickStep(apiCallId: string, state: CallState, prefix = "
   setCallState(apiCallId, state);
   const text =
     withAvailability
-      .map((d, i) => `ל${weekdayDate(new Date(`${d.work_date}T00:00:00Z`))} הקש ${i + 1}`)
+      .map((d, i) => `ל${weekdayDate(new Date(`${d.work_date}T00:00:00Z`))} הַקֵשׁ ${i + 1}`)
       .join(", ") + ".";
-  return sayAndGatherDigits(prefix + "לרשימת הימים הפתוחים: " + text);
+  return sayAndGatherDigits(prefix + "לִרְשִׁימַת הַיָמִים הַפְתוחִים: " + text);
 }
 
 async function handleDayPick(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -409,10 +432,12 @@ async function renderTimeOrPeriodStep(
     bucketed
       .map(
         (b, i) =>
-          `ל${b.label} בין השעות ${formatIsraelTime(b.starts_at)} עד ${formatIsraelTime(b.ends_at)} הקש ${i + 1}`,
+          `ל${DAY_PERIOD_LABELS_NIKUD[b.key]} בֵין הַשָׁעוֹת ${formatIsraelTime(b.starts_at)} עַד ${formatIsraelTime(b.ends_at)} הַקֵשׁ ${i + 1}`,
       )
       .join(", ") + ".";
-  return sayAndGatherDigits("לאיזה טווח שעות תרצה/י? " + text);
+  // "תרצה/י" avoided (the "/" gets read aloud as division, same bug as
+  // weekdayDate above) — phrased as a direct question instead.
+  return sayAndGatherDigits("לְאֵיזֶה טְוָח שָׁעוֹת לִקְבֹעַ? " + text);
 }
 
 async function handlePeriodPick(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
@@ -428,7 +453,7 @@ async function handlePeriodPick(apiCallId: string, state: CallState, digits: str
 
 async function renderTimePickStep(state: CallState, prefix = ""): Promise<NextResponse> {
   const text =
-    (state.time_options ?? []).map((s, i) => `${formatIsraelTime(new Date(s))} הקש ${i + 1}`).join(", ") + ".";
+    (state.time_options ?? []).map((s, i) => `${formatIsraelTime(new Date(s))} הַקֵשׁ ${i + 1}`).join(", ") + ".";
   return sayAndGatherDigits(prefix + text);
 }
 
@@ -464,13 +489,14 @@ async function finalizeBooking(
   }
 
   const d = result.booked.starts_at;
+  // "תקבל/י" avoided (same "/" TTS-reads-as-division bug) — passive voice sidesteps the gendered pronoun entirely.
   const confirmText = result.pendingApproval
-    ? "התור שלך נשמר וממתין לאישור הספר, תקבל/י הודעה כשהוא יאשר."
-    : `מעולה, התור נקבע ליום ${weekdayDate(d)} בשעה ${formatIsraelTime(d)}.`;
+    ? "הַתוֹר שֶׁלְךָ נִשְׁמַר ומַמְתִין לְאִישׁור הַסַפָר, תִשָׁלַח הוֹדָעָה כְשֶׁהוא יְאַשֵׁר."
+    : `מְעֻלֶה, הַתוֹר נִקְבַע לְ${weekdayDate(d)} בְשָׁעָה ${formatIsraelTime(d)}.`;
 
   state.step = "book_more";
   setCallState(apiCallId, state);
-  return sayAndGatherDigits(`${confirmText} לקביעת תור נוסף באותה שיחה הקש 1, לסיום הקש 2.`);
+  return sayAndGatherDigits(`${confirmText} לִקְבִיעַת תוֹר נוֹסָף בְאוֹתָה שִׂיחָה הַקֵשׁ 1, לְסִיום הַקֵשׁ 2.`);
 }
 
 // ---- Step 8: another appointment in the same call? (§7 step 8) ----
@@ -487,7 +513,7 @@ async function handleBookMore(apiCallId: string, state: CallState, digits: strin
   }
   if (digits === "2") {
     clearCallState(apiCallId);
-    return sayAndHangup("תודה, להתראות.");
+    return sayAndHangup("תוֹדָה, לְהִתְרָאוֹת.");
   }
 
   return handleMenuFailure(apiCallId, state);

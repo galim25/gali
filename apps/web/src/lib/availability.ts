@@ -64,6 +64,17 @@ const DAY_PERIOD_BOUNDARIES: { key: DayPeriod["key"]; label: string }[] = [
 ];
 
 /**
+ * Nikud variants of the same labels above, for IVR TTS only (see
+ * apps/web/src/lib/ivr/flow.ts) — the booking-UI's plain labels stay
+ * un-vocalized since they're rendered as text, not spoken.
+ */
+export const DAY_PERIOD_LABELS_NIKUD: Record<DayPeriod["key"], string> = {
+  morning: "בֹקֶר",
+  afternoon: "צָהֳרַיִם",
+  evening: "עֶרֶב",
+};
+
+/**
  * Splits a work day into up to 3 fixed time-of-day buckets (morning/
  * afternoon/evening) at 12:00/18:00 Israel wall-clock time, clipped to the
  * day's actual open hours. Clipping alone gives both "no gaps between
