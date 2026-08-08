@@ -18,35 +18,45 @@ function textPlain(body: string): NextResponse {
 }
 
 /**
- * ⚠️ UNVERIFIED (docs/# IVR BarberBook.txt "סטטוס") — community documentation
- * for Yemot's response syntax lists period/hyphen/apostrophe/quotation-mark/
- * ampersand as characters that collide with the response's own field/command
- * separators (`,`/`=`/`&`/`-`). flow.ts's prompts use periods and commas
- * freely (Twilio's TwiML had no such restriction), so strip the documented
- * troublemakers defensively rather than risk a corrupted response once a real
- * call exercises this. Revisit once decision #19's line is live and a real
- * request/response has been inspected.
+ * Confirmed 2026-08-05 against community API reference (freeivr.co.il forum,
+ * post 76, "מודול API"): the only characters Yemot's own response syntax
+ * forbids inside dynamic `t-` text are period and hyphen (period doubles as
+ * the `id_list_message=` item separator, e.g. `t-foo.f-/8/bar`). `&` is
+ * additionally stripped here — not because Yemot forbids it, but because
+ * *our* `sayAndHangup` joins two response commands with `&`
+ * (`id_list_message=...&go_to_folder=hangup`); a stray `&` in dynamic text
+ * would prematurely end that command the same way it would in a query
+ * string. Still not verified against a real call (no line yet at the time
+ * of this update) — only against the forum's written spec.
  */
 function sanitize(text: string): string {
-  return text.replace(/[.\-'"&]/g, "");
-}
-
-/** Every DTMF menu in this feature is capped at 9 numbered options (see flow.ts) so a single digit always suffices. */
-export function sayAndGatherDigits(text: string): NextResponse {
-  const prompt = sanitize(text);
-  // read=t-{prompt}={field},{re_enter_if_exists},{min_digits},{max_digits},{type},{allow_empty}
-  return textPlain(`read=t-${prompt}=${DTMF_FIELD},,1,1,Digits,yes`);
+  return text.replace(/[.\-&]/g, "");
 }
 
 /**
- * ⚠️ UNVERIFIED — "Speech" as the `read=` type keyword for speech-to-text is
- * inferred from yemot-router2's `mode: 'stt'`, not confirmed against Yemot's
- * own raw protocol docs. Confirm the exact keyword against a real call before
- * relying on this for §7 step 2 (new-caller name capture).
+ * `read=` syntax confirmed 2026-08-05 (freeivr.co.il post 76):
+ * `read=[announcement]=[param],[reuse],[max_digits],[min_digits],[timeout],[echo_mode],...`
+ * — trailing optional fields may be omitted. Every DTMF menu in this feature
+ * is capped at 9 numbered options (see flow.ts) so max=min=1 always suffices.
+ * (Previously this put the literal strings "Digits"/"yes" in the
+ * timeout/echo_mode slots — a real bug from guessing the field order before
+ * the syntax was confirmed.)
+ */
+export function sayAndGatherDigits(text: string): NextResponse {
+  const prompt = sanitize(text);
+  return textPlain(`read=t-${prompt}=${DTMF_FIELD},,1,1`);
+}
+
+/**
+ * Speech-recognition `read=` syntax confirmed 2026-08-05 (freeivr.co.il post
+ * 76): `read=[announcement]=[param],,voice[,language][,allow_dtmf][,max_digits]`
+ * — the literal keyword is `voice`, not `Speech` as previously guessed (§2
+ * decision #2's ⚠️ is now resolved). `he-IL` requested for Hebrew name
+ * capture (§7 step 2). Still unverified against a real call.
  */
 export function sayAndGatherSpeech(text: string): NextResponse {
   const prompt = sanitize(text);
-  return textPlain(`read=t-${prompt}=${SPEECH_FIELD},,0,,Speech,yes`);
+  return textPlain(`read=t-${prompt}=${SPEECH_FIELD},,voice,he-IL`);
 }
 
 export function sayAndHangup(text: string): NextResponse {

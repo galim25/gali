@@ -5,12 +5,14 @@ export type IvrStep =
   | "service"
   | "slot_offer"
   | "day_pick"
+  | "period_pick"
   | "time_pick"
   | "book_more";
 
 export type DayOption = { work_day_id: string; work_date: string };
 export type BarberOption = { id: string; full_name: string };
 export type ServiceOption = { id: string; name: string; is_child_service: boolean };
+export type PeriodOption = { key: string; label: string; slots: string[] };
 
 export type CallState = {
   step: IvrStep;
@@ -30,6 +32,7 @@ export type CallState = {
   offered_work_day_id?: string;
   offered_starts_at?: string;
   day_options?: DayOption[];
+  period_options?: PeriodOption[];
   time_options?: string[];
 };
 

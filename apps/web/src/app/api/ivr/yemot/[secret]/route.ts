@@ -12,10 +12,12 @@ import { DTMF_FIELD, SPEECH_FIELD } from "@/lib/ivr/yemotResponse";
  * under proxy.ts's matcher) — the [secret] path segment is what stands in
  * for auth here (§2 decision #17, no signature mechanism exists).
  *
- * ⚠️ UNVERIFIED (docs "סטטוס"): whether Yemot actually sends GET (query
- * string) or POST (form-encoded body, api_url_post=yes) is a config choice
- * made in Yemot's admin panel when the extension is set up — both are
- * handled here defensively until that's confirmed.
+ * Confirmed 2026-08-05 (freeivr.co.il post 76): Yemot defaults to GET (query
+ * string); POST (form-encoded body) only happens if the extension is
+ * explicitly configured with `api_url_post=yes` in Yemot's admin panel. Both
+ * are still handled here defensively since it's not yet confirmed which the
+ * purchased line's extension will use in practice — simplify to GET-only
+ * once that's set and a real request has been inspected.
  */
 async function extractParams(req: NextRequest): Promise<Record<string, string>> {
   const fromQuery = Object.fromEntries(req.nextUrl.searchParams.entries());

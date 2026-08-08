@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@barberbook/db";
 import { formatIsraelTime, ISRAEL_TIME_ZONE } from "@barberbook/shared";
 import { getActiveBarbers } from "@/lib/actions/barbers";
-import { getServices, getOpenDates, getSlotsForDate, getEarliestAvailability } from "@/lib/actions/booking";
+import {
+  getServices,
+  getOpenDates,
+  getSlotsForDate,
+  getEarliestAvailability,
+  getWorkDayInterval,
+} from "@/lib/actions/booking";
+import { getDayPeriods } from "@/lib/availability";
 import { registerUserCore } from "@/lib/actions/registerCore";
 import { identifyCaller, generateRandomPassword } from "@/lib/ivr/identifyCaller";
 import { bookViaPhone } from "@/lib/ivr/bookViaPhone";
@@ -12,13 +19,18 @@ import { getCallState, setCallState, clearCallState, type CallState } from "@/li
 const MAX_MENU_OPTIONS = 9;
 const MAX_NAME_ATTEMPTS = 2;
 
+/**
+ * Deliberately not `d.toLocaleDateString("he-IL", { day, month, ... })` —
+ * that locale renders numeric dates as "5.8", and yemotResponse.ts's
+ * sanitize() strips periods (confirmed forbidden by Yemot's own response
+ * syntax, see that file), which silently mangled it down to "58". Built by
+ * hand with "/" instead, which sanitize() leaves untouched.
+ */
 function weekdayDate(d: Date): string {
-  return d.toLocaleDateString("he-IL", {
-    weekday: "long",
-    day: "numeric",
-    month: "numeric",
-    timeZone: ISRAEL_TIME_ZONE,
-  });
+  const weekday = d.toLocaleDateString("he-IL", { weekday: "long", timeZone: ISRAEL_TIME_ZONE });
+  const day = d.toLocaleDateString("he-IL", { day: "numeric", timeZone: ISRAEL_TIME_ZONE });
+  const month = d.toLocaleDateString("he-IL", { month: "numeric", timeZone: ISRAEL_TIME_ZONE });
+  return `${weekday} ${day}/${month}`;
 }
 
 /** §7 step 1 — the very first webhook of an incoming call. */
@@ -89,6 +101,8 @@ export async function continueCall(
       return handleSlotOffer(apiCallId, state, digits);
     case "day_pick":
       return handleDayPick(apiCallId, state, digits);
+    case "period_pick":
+      return handlePeriodPick(apiCallId, state, digits);
     case "time_pick":
       return handleTimePick(apiCallId, state, digits);
     case "book_more":
@@ -274,7 +288,7 @@ async function renderSlotOfferStep(apiCallId: string, state: CallState, prefix =
   setCallState(apiCallId, state);
 
   const d = new Date(earliest.starts_at);
-  const text = `התור הקרוב ביותר הוא יום ${weekdayDate(d)} בשעה ${formatIsraelTime(d)}. לאישור הקש 1, לבחירת יום אחר הקש 2.`;
+  const text = `התור הקרוב ביותר הוא יום ${weekdayDate(d)} בשעה ${formatIsraelTime(d)}. לאישור הקש 1, לבחירת יום אחר הקש 2, לבחירת שעה אחרת באותו היום הקש 3.`;
   return sayAndGatherDigits(prefix + text);
 }
 
@@ -286,6 +300,15 @@ async function handleSlotOffer(apiCallId: string, state: CallState, digits: stri
   if (digits === "2") {
     state.invalid_attempts = 0;
     return renderDayPickStep(apiCallId, state);
+  }
+  if (digits === "3") {
+    state.invalid_attempts = 0;
+    return renderTimeOrPeriodStep(
+      apiCallId,
+      state,
+      state.offered_work_day_id!,
+      "מצטערים, השעה הזו כבר לא זמינה. ",
+    );
   }
   return handleMenuFailure(apiCallId, state);
 }
@@ -318,16 +341,86 @@ async function handleDayPick(apiCallId: string, state: CallState, digits: string
   const chosen = state.day_options?.[Number(digits) - 1];
   if (!chosen) return handleMenuFailure(apiCallId, state);
 
-  const slots = await getSlotsForDate(chosen.work_day_id, state.service_id!);
-  const limited = slots.slice(0, MAX_MENU_OPTIONS);
-  if (limited.length === 0) {
+  return renderTimeOrPeriodStep(apiCallId, state, chosen.work_day_id, "מצטערים, היום הזה כבר לא זמין. ");
+}
+
+/**
+ * Shared by both entry points that land on "here's a specific day, now pick
+ * a time" (§9 follow-up, 2026-08-08 — user request): declining the earliest
+ * offer with "different time, same day" (handleSlotOffer digit 3), and
+ * picking a day from the full list (handleDayPick). A busy day (more than
+ * MAX_MENU_OPTIONS slots) gets a morning/בוקר-צהריים-ערב period choice first
+ * via getDayPeriods (same boundaries as the booking-UI's period split, see
+ * apps/web/src/lib/availability.ts) so the caller isn't forced to sit
+ * through 9+ read-out times; a quiet day skips straight to the time list
+ * exactly like before this change. Empty buckets are never announced (only
+ * periods that actually have availability appear as options), and if
+ * splitting still leaves only one non-empty bucket (e.g. a short work day
+ * that never reaches the afternoon boundary) there's no real choice to
+ * offer, so it also falls through to the plain time list.
+ */
+async function renderTimeOrPeriodStep(
+  apiCallId: string,
+  state: CallState,
+  work_day_id: string,
+  emptyMessage: string,
+): Promise<NextResponse> {
+  const slots = await getSlotsForDate(work_day_id, state.service_id!);
+  if (slots.length === 0) {
     // Availability changed between render and choice (race) — back to the day list, doesn't spend a menu-failure attempt.
-    return renderDayPickStep(apiCallId, state, "מצטערים, היום הזה כבר לא זמין. ");
+    return renderDayPickStep(apiCallId, state, emptyMessage);
+  }
+
+  if (slots.length <= MAX_MENU_OPTIONS) {
+    state.invalid_attempts = 0;
+    state.time_options = slots;
+    state.offered_work_day_id = work_day_id;
+    state.step = "time_pick";
+    setCallState(apiCallId, state);
+    return renderTimePickStep(state);
+  }
+
+  const workDay = await getWorkDayInterval(work_day_id);
+  const bucketed = getDayPeriods(workDay)
+    .map((p) => ({
+      key: p.key,
+      label: p.label,
+      starts_at: p.starts_at,
+      ends_at: p.ends_at,
+      slots: slots.filter((s) => new Date(s) >= p.starts_at && new Date(s) < p.ends_at),
+    }))
+    .filter((b) => b.slots.length > 0);
+
+  if (bucketed.length <= 1) {
+    state.invalid_attempts = 0;
+    state.time_options = slots.slice(0, MAX_MENU_OPTIONS);
+    state.offered_work_day_id = work_day_id;
+    state.step = "time_pick";
+    setCallState(apiCallId, state);
+    return renderTimePickStep(state);
   }
 
   state.invalid_attempts = 0;
-  state.time_options = limited;
-  state.offered_work_day_id = chosen.work_day_id;
+  state.period_options = bucketed.map((b) => ({ key: b.key, label: b.label, slots: b.slots }));
+  state.offered_work_day_id = work_day_id;
+  state.step = "period_pick";
+  setCallState(apiCallId, state);
+  const text =
+    bucketed
+      .map(
+        (b, i) =>
+          `ל${b.label} בין השעות ${formatIsraelTime(b.starts_at)} עד ${formatIsraelTime(b.ends_at)} הקש ${i + 1}`,
+      )
+      .join(", ") + ".";
+  return sayAndGatherDigits("לאיזה טווח שעות תרצה/י? " + text);
+}
+
+async function handlePeriodPick(apiCallId: string, state: CallState, digits: string): Promise<NextResponse> {
+  const chosen = state.period_options?.[Number(digits) - 1];
+  if (!chosen) return handleMenuFailure(apiCallId, state);
+
+  state.invalid_attempts = 0;
+  state.time_options = chosen.slots.slice(0, MAX_MENU_OPTIONS);
   state.step = "time_pick";
   setCallState(apiCallId, state);
   return renderTimePickStep(state);

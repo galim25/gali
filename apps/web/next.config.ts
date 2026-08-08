@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
-// Host/IP for `next dev` to accept requests from besides localhost (e.g. a
-// VPS IP while testing over the network before a real domain exists) — kept
-// out of source so the server's address isn't committed to git history.
-// Set DEV_ALLOWED_ORIGIN in .env to your dev host's IP/hostname.
-const devAllowedOrigin = process.env.DEV_ALLOWED_ORIGIN;
+// Host(s)/IP for `next dev` to accept requests from besides localhost (e.g. a
+// VPS IP or ngrok tunnel while testing over the network before a real domain
+// exists) — kept out of source so the server's address isn't committed to
+// git history. Set DEV_ALLOWED_ORIGIN in .env, comma-separated for multiple.
+const devAllowedOrigins = process.env.DEV_ALLOWED_ORIGIN?.split(",").map((o) => o.trim());
 
 const nextConfig: NextConfig = {
-  ...(devAllowedOrigin ? { allowedDevOrigins: [devAllowedOrigin] } : {}),
+  ...(devAllowedOrigins ? { allowedDevOrigins: devAllowedOrigins } : {}),
 };
 
 // Generates public/sw.js from src/app/sw.ts at build time and injects the

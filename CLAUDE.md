@@ -6,11 +6,14 @@
 - `# PRD BarberBook.txt` — דרישות מוצר, User Stories, Functional Requirements
 - `# ERD BarberBook.txt` — מודל נתונים (Mermaid ERD + טבלאות שדות)
 - `# STACK BarberBook.txt` — ארכיטקטורת מערכת
-- `# IVR BarberBook.txt` — **הוחלף הספק ל-ימות המשיח (2026-08-04, אחרי ש-Twilio התברר
-  כלא מציע מספרים ישראליים בכלל) — שכבת האינטגרציה נכתבה מחדש מולו, עוברת build/lint/
-  test, טרם נבדקה מול שיחה אמיתית (אין עדיין קו)** — קביעת תור טלפונית (מענה קולי
-  אוטומטי, DTMF). כל ההחלטות שסוכמו + תסריט שיחה מלא + סטטוס מימוש מעודכן. קרא במלואו
-  לפני שממשיכים את הפיצ'ר הזה.
+- `# IVR BarberBook.txt` — **ימות המשיח (הוחלף מ-Twilio ב-2026-08-04). קו נרכש
+  ב-2026-08-05 (`0772248273`), `.env` מלא (`YEMOT_PHONE_NUMBER`/`YEMOT_WEBHOOK_SECRET`/
+  `PUBLIC_BASE_URL` דרך דומיין ngrok סטטי `marlin-capitol-carat.ngrok-free.dev`),
+  ותחביר `read=`/רשימת תווים אסורים תוקנו בקוד לפי מקור קהילתי מפורט (freeivr.co.il
+  post/76) — השלוחה הוגדרה ובוצעה שיחת בדיקה אמיתית ראשונה (2026-08-08, עד הצעת
+  התור הקרוב ביותר, לא עד אישור סופי) + נוספה בחירת טווח שעות (בוקר/צהריים/ערב)**
+  — קביעת תור טלפונית (מענה קולי אוטומטי, DTMF). כל ההחלטות שסוכמו + תסריט שיחה
+  מלא + סטטוס מימוש מעודכן. קרא במלואו לפני שממשיכים את הפיצ'ר הזה.
 
 קרא את הקבצים המלאים לפני שינויים משמעותיים — הסיכום כאן חלקי בכוונה.
 
@@ -182,7 +185,7 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 - **`apps/worker`** — לא עוד placeholder: `node-cron` (כבר היה תלות מוצהרת מ-Phase 1) מריץ כל דקה `sendDueReminders()` (`apps/worker/src/reminders.ts`) שמאתר תורים `scheduled` עם חשבון מקושר שמתחילים בתוך `APPOINTMENT_REMINDER_LEAD_MINUTES` (120 דק', `packages/shared`) וללא `Notification` מסוג `appointment_reminder` קיים עדיין — האידמפוטנטיות מסתמכת רק על הבדיקה הזו (אין דגל "תזכורת נשלחה" נפרד בסכימה). נבדק ידנית קצה-לקצה (יצירת תור זמני 30 דק' קדימה, הרצה כפולה, מחיקה) — נשלחת פעם אחת בלבד. השרת דורש `apps/worker/.env` (מקומי, לא ב-git כמו שאר קבצי ה-.env) עם `DATABASE_URL`; `pnpm --filter @barberbook/worker dev` (או `pnpm worker` מהשורש) מריץ אותו עם `--env-file=.env`.
 - `formatIsraelDate`/`formatIsraelTime` הועברו מ-`apps/web/src/lib/notifyCustomer.ts` ל-`packages/shared` כדי ש-`apps/worker` (חבילה נפרדת, בלי גישה ל-`apps/web`) יוכל להשתמש בהן גם כן.
 - **PWA אמיתי עם אפשרות התקנה** (2026-08-04, `@serwist/next`) — `apps/web/src/app/sw.ts` הוא מקור ה-service worker (Serwist, לא next-pwa — לא תחזוקתי מספיק מול Next 16); `next.config.ts` עוטף אותו ב-`withSerwist` שמייצר `public/sw.js` בזמן build (git-ignored, ראו `.gitignore`). `public/site.webmanifest` תוקן ממדגם placeholder (`MyWebSite`) לערכי מותג אמיתיים (שם, `theme_color: #508186`, `background_color: #fdf8f0`, אייקונים `192/512` עם `purpose: "any maskable"`). הרישום בפועל בצד הלקוח הוא `<SerwistProvider swUrl="/sw.js" disable={NODE_ENV !== "production"}>` ב-`app/layout.tsx` — Serwist **לא** מזריק סקריפט רישום אוטומטי (בניגוד ל-next-pwa), חובה `SerwistProvider` מפורש. `<InstallPrompt/>` (`apps/web/src/components/InstallPrompt.tsx`) תופס `beforeinstallprompt` ומציג באנר התקנה מעוצב (`rounded-xl border-barber-teal`); ב-iOS (אין `beforeinstallprompt`) מציג הנחיה טקסטואלית "שיתוף ← הוסף למסך הבית" במקום. דחייה נשמרת ב-`localStorage` כדי לא להטריד שוב.
-  - **גוֹצְ'ה קריטי ל-deploy:** Next.js 16 בררת המחדל היא Turbopack גם ל-`next build`, ו-Serwist (webpack-based) מתנגש איתו. `apps/web/package.json`'s `"build"` script שונה ל-`next build --webpack` בגלל זה. **תמיד להריץ `pnpm build` (או `pnpm --filter @barberbook/web build`) — לעולם לא `next build`/`pnpm exec next build` ישירות** (זה ידלג על הדגל ויכשל). ה-`dev` script נשאר Turbopack כרגיל (Serwist מכבה את עצמו אוטומטית מחוץ ל-production, אז זה לא משנה שם, רק מדפיס אזהרה לא מזיקה).
+  - **גוֹצְ'ה קריטי ל-deploy:** Next.js 16 בררת המחדל היא Turbopack גם ל-`next build`, ו-Serwist (webpack-based) מתנגש איתו. `apps/web/package.json`'s `"build"` script שונה ל-`next build --webpack` בגלל זה. **תמיד להריץ `pnpm build` (או `pnpm --filter @barberbook/web build`) — לעולם לא `next build`/`pnpm exec next build` ישירות** (זה ידלג על הדגל ויכשל). **עדכון 2026-08-05: אותה בעיה קיימת גם ב-`dev`, לא רק ב-`build`** — בניגוד למה שהונח כאן קודם ("Serwist מכבה את עצמו מחוץ ל-production, זו רק אזהרה לא מזיקה"), בפועל `next dev` (טורבופאק כברירת מחדל) **קורס עם שגיאה** ("This build is using Turbopack, with a `webpack` config and no `turbopack` config") ברגע ריצה ראשון, לא רק מדפיס אזהרה. `apps/web/package.json`'s `"dev"` script שונה בהתאם ל-**`next dev --webpack`**.
 
 **טרם קיים קוד עבורו:** שום דבר מה-PRD הנוכחי. הכל ב-US-001 עד US-025 ו-FR-1 עד FR-35 ממומש. **חסימת יום מקביעת תורים** (ראו למעלה) ו**ספרי משנה** (ראו למעלה) הן תוספות מעבר ל-PRD המקורי — לא ממוספרות כ-US, נוספו לפי בקשה ישירה של המשתמשת (2026-07-26 ו-2026-08-03 בהתאמה).
 
@@ -198,10 +201,23 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 `twilio` ב-`package.json`) **והוחלפה בשכבה מול ימות המשיח:** `lib/ivr/yemotResponse.ts`
 (בונה מחרוזת פקודות טקסטואלית, לא XML), `lib/ivr/verifyWebhookSecret.ts` (אין מנגנון
 חתימה מתועד כמו `X-Twilio-Signature` אצל Yemot — האבטחה היא סוד ב-URL עצמו, ראו החלטה
-#17 במסמך), ו-route יחיד `apps/web/src/app/api/ivr/yemot/[secret]/route.ts`. **עדיין
-אין קו ימות המשיח/מספר/דומיין+HTTPS אמיתיים** (המשתמשת מתכננת לרכוש קו 2026-08-05, רק
-דרך נציג טלפוני בשעות בוקר) — כל מה שמסומן ⚠️ בקוד/במסמך (בעיקר תחביר זיהוי-הדיבור
-ב-`read=`, ורשימת התווים המסוננת) מבוסס תיעוד קהילתי בלבד וטעון אימות מול חשבון/שיחה
-אמיתיים לפני production — ראו סדר העבודה בסעיף 9 של המסמך.
+#17 במסמך), ו-route יחיד `apps/web/src/app/api/ivr/yemot/[secret]/route.ts`. **עדכון
+2026-08-05:** קו ימות המשיח נרכש (`0772248273`), ו-`.env` מלא עם שלושת המשתנים
+(`YEMOT_PHONE_NUMBER`/`YEMOT_WEBHOOK_SECRET`/`PUBLIC_BASE_URL` — האחרון דרך דומיין
+ngrok סטטי חינמי לבדיקות, `marlin-capitol-carat.ngrok-free.dev`, עד שיירכש דומיין
+אמיתי). נמצא מקור קהילתי מפורט משמעותית (freeivr.co.il `post/76`) שאישר/תיקן כמה
+פרטי תחביר: `read=` לזיהוי דיבור משתמש במילת המפתח `voice` (לא `Speech` כפי שהונח
+קודם), רשימת התווים האסורים בטקסט דינמי היא רק נקודה+מקף, וברירת המחדל היא בקשות
+GET (לא POST). לפי זה תוקנו שני באגים אמיתיים בקוד: `yemotResponse.ts`'s
+`sayAndGatherDigits`/`sayAndGatherSpeech` בנו את מחרוזת `read=` עם פרמטרים בסדר
+שגוי, ו-`flow.ts`'s `weekdayDate` בנה תאריך בפורמט "5.8" שה-`sanitize()` (בצדק) קטע
+ל-"58" חסר משמעות. **עדכון 2026-08-08:** השלוחה הוגדרה בממשק ימות, ובוצעה שיחת
+בדיקה אמיתית ראשונה שעברה בהצלחה עד הצעת התור הקרוב ביותר (זיהוי מתקשר → רישום
+בפועל ב-DB → בחירת ספר → בחירת שירות), פותרת סופית את GET מול POST (**GET**) ואת
+פורמט `ApiPhone` (**מקומי**) — עדיין לא אומתה הכתיבה בפועל של תור (המתקשרת ניתקה
+לפני אישור שעה). **אותו עדכון, הרחבת פיצ'ר:** נוספה בחירת טווח שעות (בוקר/צהריים/
+ערב, `getDayPeriods`) כשמסרבים להצעת התור הקרוב ביותר או כשיש יותר מ-9 שעות פנויות
+ביום — ראו `lib/ivr/flow.ts`'s `renderTimeOrPeriodStep`. ראו סדר העבודה בסעיף 9 של
+המסמך.
 
 **הערת בדיקה:** US-018 עד US-023 (מדיניות אישור, בקשות תורים, התראות מנהל, הצטרפות/ניהול רשימת המתנה) נבדקו ידנית בדפדפן ע"י המשתמשת ב-2026-07-20/21. US-024 (התפנות תור) עבד בפועל באותה בדיקה כתופעת לוואי (בקשת תור שנדחתה שחררה שעה). חסימת שעות שעברו (FR-28) ו-US-025 (הודעת הרחבת שעות) נכתבו אחרי אותה בדיקה — עברו `tsc`, את 11 הטסטים הקיימים (`pnpm test`), ואימות לוגיקה ידני מול הסכימה/DB, אבל **לא עברו עדיין בדיקה ידנית בדפדפן** על ה-flow המלא (למשל: לקוח שרואה בפועל ש-09:00 נעלם מרשימת השעות אחרי שהשעה עברה; לקוח ברשימת המתנה שמקבל בפועל SMS/Notification אחרי שהספר הרחיב יום).

@@ -90,6 +90,14 @@ export async function getSlotsForDate(
     .map((d) => d.toISOString());
 }
 
+export async function getWorkDayInterval(work_day_id: string): Promise<Interval> {
+  const workDay = await prisma.workDay.findUniqueOrThrow({
+    where: { id: work_day_id },
+    select: { starts_at: true, ends_at: true },
+  });
+  return { starts_at: workDay.starts_at, ends_at: workDay.ends_at };
+}
+
 export type EarliestAvailability = { work_day_id: string; starts_at: string };
 
 /**
