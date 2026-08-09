@@ -20,6 +20,21 @@ const MAX_MENU_OPTIONS = 9;
 const MAX_NAME_ATTEMPTS = 2;
 
 /**
+ * 2026-08-09, explicit user request after real test calls: the very first
+ * thing a caller hears gave no indication which system/business they'd
+ * reached. Prefixed onto all four first-webhook branches of startCall() so
+ * it's heard no matter how identifyCaller() resolves. "הגעתם" (2nd-person
+ * plural) is gender-neutral, same trick as the "שהתקשרת" comment below.
+ * "הַתוֹרִים" deliberately has no dagesh in the ת — this line originally
+ * shipped as "הַתּוֹרִים", reintroducing the exact ת+dagesh+cholam-vav
+ * combination that the 2026-08-08 pass (see docs/# IVR BarberBook.txt)
+ * already found sounds distorted on this TTS ("תוור" instead of "תור"),
+ * which is why the greeting was reported as sounding bad. Every other
+ * "תוֹר"/"תוֹרִים" in this file was already fixed; this one just missed it.
+ */
+const WELCOME_GREETING = "הִגַעְתֶם לְמַעֲרֶכֶת קְבִיעַת הַתוֹרִים שֶׁל מִסְפָּרַת יוֹסִי. ";
+
+/**
  * 2026-08-08: was hand-built as "{weekday} {day}/{month}" (e.g. "יום ראשון
  * 9/8") to dodge sanitize() stripping the period out of the locale's default
  * numeric rendering (see git history) — but Yemot's TTS reads a bare "/" as
@@ -53,10 +68,10 @@ export async function startCall(apiCallId: string, apiPhone: string | null): Pro
   const identity = await identifyCaller(apiPhone);
 
   if (identity.outcome === "no_caller_id") {
-    return sayAndHangup("לא ניתן לזהות את מספרך. השתמשו באפליקציה או בקו הרגיל של המספרה.");
+    return sayAndHangup([WELCOME_GREETING, "לא ניתן לזהות את מספרך. השתמשו באפליקציה או בקו הרגיל של המספרה."]);
   }
   if (identity.outcome === "blocked") {
-    return sayAndHangup("לא ניתן לקבוע תור בקו זה. אנא צרו קשר עם המספרה.");
+    return sayAndHangup([WELCOME_GREETING, "לא ניתן לקבוע תור בקו זה. אנא צרו קשר עם המספרה."]);
   }
 
   if (identity.outcome === "existing_user") {
@@ -68,7 +83,7 @@ export async function startCall(apiCallId: string, apiPhone: string | null): Pro
       invalid_attempts: 0,
     };
     setCallState(apiCallId, state);
-    return renderBarberStep(apiCallId, state, `שָׁלוֹם ${identity.full_name}, בוֹאו נִקְבַע לְךָ תוֹר. `);
+    return renderBarberStep(apiCallId, state, `${WELCOME_GREETING}שָׁלוֹם ${identity.full_name}, בוֹאו נִקְבַע לְךָ תוֹר. `);
   }
 
   // new_caller
@@ -81,7 +96,10 @@ export async function startCall(apiCallId: string, apiPhone: string | null): Pro
   // "שהתקשרת" (2nd-person past) is gender-neutral in Hebrew, unlike "את/ה
   // מתקשר/ת" — also sidesteps the same "/" TTS-reads-as-division bug as
   // weekdayDate (see below), since Yemot reads a bare slash aloud.
-  return sayAndGatherSpeech("שָׁלוֹם, זוֹ הַפַעַם הָרִאשׁוֹנָה שֶׁהִתְקַשַׁרְתָ לַקָו הַזֶה. מָה שִׁמְךָ הַמָלֵא?");
+  return sayAndGatherSpeech([
+    WELCOME_GREETING,
+    "שָׁלוֹם, זוֹ הַפַעַם הָרִאשׁוֹנָה שֶׁהִתְקַשַׁרְתָ לַקָו הַזֶה. מָה שִׁמְךָ הַמָלֵא?",
+  ]);
 }
 
 /** Every subsequent webhook of the same call (every `read=` response of §5/§6 points back at the same Yemot extension). */
@@ -377,8 +395,15 @@ async function renderDayPickStep(apiCallId: string, state: CallState, prefix = "
   }
 
   if (withAvailability.length === 0) {
-    clearCallState(apiCallId);
-    return sayAndHangup([prefix, "מצטערים, אין כרגע תורים פנויים. נסו שוב מאוחר יותר."]);
+    // 2026-08-09, explicit user request: this used to hang up outright.
+    // There's still the originally-offered slot (state.offered_*, set by
+    // renderSlotOfferStep and never touched on this path) — apologize for
+    // there being no *other* dates, then fall back to re-offering it via a
+    // fresh renderSlotOfferStep call rather than reusing the stale values
+    // directly, so a genuine zero-availability race still correctly hits
+    // the real "no availability at all" hangup (decision #15) instead of
+    // re-offering a slot that's actually gone.
+    return renderSlotOfferStep(apiCallId, state, `${prefix}מצטערים, אין כרגע תאריכים פתוחים נוספים. ניתן לנסות שוב מאוחר יותר. `);
   }
 
   state.day_options = withAvailability;
