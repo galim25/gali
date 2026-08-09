@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/jwt";
+import {
+  SESSION_COOKIE,
+  SESSION_DURATION_SECONDS,
+  cookieSecure,
+  signSession,
+  verifySessionToken,
+} from "@/lib/auth/jwt";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,28 +16,41 @@ export async function proxy(request: NextRequest) {
   const isAccountRoute = pathname.startsWith("/account");
   const isAuthRoute = ["/login", "/register"].includes(pathname);
 
-  if (isAdminRoute && !session) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
+  let response: NextResponse;
 
-  if (isAdminRoute && session && session.role !== "administrator") {
+  if (isAdminRoute && !session) {
+    response = NextResponse.redirect(new URL("/login", request.url));
+  } else if (isAdminRoute && session && session.role !== "administrator") {
     // A logged-in non-admin hitting /admin must not be redirected to
     // /login: the auth-route rule below would immediately bounce an
     // authenticated session back out again, causing a redirect loop.
-    return NextResponse.redirect(new URL("/account", request.url));
-  }
-
-  if (isAccountRoute && !session) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  if (isAuthRoute && session) {
-    return NextResponse.redirect(
+    response = NextResponse.redirect(new URL("/account", request.url));
+  } else if (isAccountRoute && !session) {
+    response = NextResponse.redirect(new URL("/login", request.url));
+  } else if (isAuthRoute && session) {
+    response = NextResponse.redirect(
       new URL(session.role === "administrator" ? "/admin" : "/account", request.url),
     );
+  } else {
+    response = NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Sliding session: any request presenting a still-valid session cookie
+  // gets a freshly re-signed token with a renewed 30-day window, so an
+  // actively-returning customer/admin is never logged out by calendar time
+  // alone — only by real inactivity beyond the window, or explicit logout.
+  if (session) {
+    const freshToken = await signSession(session);
+    response.cookies.set(SESSION_COOKIE, freshToken, {
+      httpOnly: true,
+      secure: cookieSecure(),
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_DURATION_SECONDS,
+    });
+  }
+
+  return response;
 }
 
 export const config = {
