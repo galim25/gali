@@ -3,7 +3,9 @@ packages:
   - "packages/*"
 
 overrides:
-  postcss: "^8.5.10"
+  # GHSA-fxqj-rqcc-2cmp — incomplete fix of GHSA-6g55-p6wh-862q, attacker-controlled
+  # sourceMappingURL can read arbitrary .map files when `from` is unset. Fixed in 8.5.23.
+  postcss: "^8.5.23"
   # next@16.2.12's optional sharp dependency (0.34.5) has 4 HIGH libvips CVEs
   # (GHSA-f88m-g3jw-g9cj) fixed in 0.35.0 — force the patched version.
   sharp: "^0.35.3"
@@ -12,6 +14,13 @@ overrides:
   # in 1.1.17 / 5.0.8 respectively. Not a runtime dependency of the app.
   brace-expansion@1: "^1.1.17"
   brace-expansion@5: "^5.0.8"
+  # GHSA-2v37-7h3g-55p8 — custom generators can loop indefinitely when size is
+  # zero. Fixed in 3.3.17. Transitive via postcss/next.
+  nanoid: "^3.3.17"
+  # GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 — quadratic CPU consumption in
+  # !!omap resolution, fix from 3.x not backported to 4.x. Fixed in 4.3.1.
+  # Transitive via eslint's @eslint/eslintrc.
+  js-yaml: "^4.3.1"
 
 allowBuilds:
   "@prisma/client": true
