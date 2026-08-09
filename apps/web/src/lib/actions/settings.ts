@@ -35,3 +35,32 @@ export async function setRequiresApprovalAction(value: boolean): Promise<Booking
   revalidatePath("/admin/settings");
   return { success: true };
 }
+
+/**
+ * Global kill switch for the phone-booking (IVR) line — checked as the very
+ * first thing in startCall() (lib/ivr/flow.ts), before any caller
+ * identification/DB writes. Default true (line active) so existing behavior
+ * is unchanged until the barber explicitly turns it off.
+ */
+export async function getIvrEnabled(): Promise<boolean> {
+  const settings = await prisma.appSettings.upsert({
+    where: { id: SETTINGS_ID },
+    update: {},
+    create: { id: SETTINGS_ID },
+  });
+  return settings.ivr_enabled;
+}
+
+export async function setIvrEnabledAction(value: boolean): Promise<BookingResult> {
+  const session = await getSession();
+  if (!session || session.role !== "administrator") return { error: "אין הרשאה" };
+
+  await prisma.appSettings.upsert({
+    where: { id: SETTINGS_ID },
+    update: { ivr_enabled: value },
+    create: { id: SETTINGS_ID, ivr_enabled: value },
+  });
+
+  revalidatePath("/admin/settings");
+  return { success: true };
+}

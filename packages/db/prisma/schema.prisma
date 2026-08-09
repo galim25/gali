@@ -285,6 +285,7 @@ model Notification {
 model AppSettings {
   id                 String   @id @default("singleton")
   requires_approval  Boolean  @default(false)
+  ivr_enabled        Boolean  @default(true)
   updated_at         DateTime @updatedAt
 
   @@map("app_settings")

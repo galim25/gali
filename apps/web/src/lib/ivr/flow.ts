@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/booking";
 import { getDayPeriods, DAY_PERIOD_LABELS_NIKUD } from "@/lib/availability";
 import { registerUserCore } from "@/lib/actions/registerCore";
+import { getIvrEnabled } from "@/lib/actions/settings";
 import { identifyCaller, generateRandomPassword } from "@/lib/ivr/identifyCaller";
 import { bookViaPhone } from "@/lib/ivr/bookViaPhone";
 import { sayAndGatherDigits, sayAndGatherSpeech, sayAndHangup } from "@/lib/ivr/yemotResponse";
@@ -65,6 +66,14 @@ function speakTime(d: Date): string {
 
 /** §7 step 1 — the very first webhook of an incoming call. */
 export async function startCall(apiCallId: string, apiPhone: string | null): Promise<NextResponse> {
+  if (!(await getIvrEnabled())) {
+    // Global kill switch (AppSettings.ivr_enabled, admin/settings), checked
+    // before any caller identification/DB writes — no call state is ever
+    // created for a blocked line, so there's nothing for continueCall() to
+    // clean up either.
+    return sayAndHangup([WELCOME_GREETING, "לא ניתן לקבוע תורים כרגע דרך הטלפון. אנא נסו שוב מאוחר יותר."]);
+  }
+
   const identity = await identifyCaller(apiPhone);
 
   if (identity.outcome === "no_caller_id") {
