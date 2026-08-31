@@ -57,18 +57,15 @@ function DateCalendar({
     return Array.from(months).sort();
   }, [openDates]);
   const [monthKey, setMonthKey] = useState(availableMonths[0] ?? new Date().toISOString().slice(0, 7));
+  // Derived, not synced via effect: falls back to the first available month
+  // whenever the stored monthKey isn't (or is no longer) in availableMonths
+  // (e.g. openDates arrives async after the initial render).
+  const effectiveMonthKey = availableMonths.includes(monthKey) ? monthKey : (availableMonths[0] ?? monthKey);
 
-  useEffect(() => {
-    if (availableMonths.length > 0 && !availableMonths.includes(monthKey)) {
-      setMonthKey(availableMonths[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableMonths.join(",")]);
-
-  const [year, month] = monthKey.split("-").map(Number);
+  const [year, month] = effectiveMonthKey.split("-").map(Number);
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstWeekday = new Date(year, month - 1, 1).getDay();
-  const monthIndex = availableMonths.indexOf(monthKey);
+  const monthIndex = availableMonths.indexOf(effectiveMonthKey);
 
   const cells: (number | null)[] = [
     ...Array(firstWeekday).fill(null),

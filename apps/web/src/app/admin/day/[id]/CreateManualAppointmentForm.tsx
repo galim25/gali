@@ -38,6 +38,9 @@ export function CreateManualAppointmentForm({
   const service = services.find((s) => s.id === serviceId);
 
   useEffect(() => {
+    // Reset-then-refetch on a changing id (React's own documented pattern for
+    // "fetch data that depends on a prop/state"), not a derived-state sync —
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSlots([]);
     setStartsAt("");
     if (!serviceId) return;

@@ -30,6 +30,8 @@ Worker Container — שולח תזכורות, החלטות ביטול, SMS על 
 
 **ידוע ופתוח:** `apps/worker`'s `pnpm build` (`tsc`) + `pnpm start` (`node dist/index.js`) לא עובד כרגע בפועל — `packages/shared`/`packages/db` נצרכים כמקור TS ישיר (בלי build step משלהם), ו-Node הרץ-CommonJS-רגיל לא יודע לפענח את זה. עד שזה יתוקן, מריצים את ה-worker דרך `pnpm exec tsx --env-file=.env src/index.ts` (בלי `--watch` לריצה יציבה ארוכת-טווח) — זה עובד תקין (`tsx` מתרגם TS "on the fly", כולל בין-חבילתי), רק שזה טכנית dev-runtime ולא בינארי מקומפל.
 
+**Docker (נוסף 2026-08-31):** `Dockerfile` יחיד בשורש (targets `web`/`worker`, חולק שלבי deps/build כי שני האפליקציות תלויות באותו workspace), `docker-compose.yml` (postgres · web · worker · nginx · certbot), ו-`nginx/templates/default.conf.template` (HTTPS + headers בסיסיים, בלי CSP — ראה הערה בקובץ). מדריך הרצה מלא (כולל ה-bootstrap הידוע של תעודת SSL עצמית זמנית) ב-`docs/DEPLOY.md`. worker רץ בקונטיינר שלו גם דרך `tsx` (אותה מגבלה כמו למעלה — לא בינארי מקומפל, וזה בסדר).
+
 ## משתמשים
 
 - **לקוח** — נרשם/מתחבר עם שם מלא + טלפון + סיסמה. קובע תורים לעצמו ולילדיו, משנה תור, שולח בקשת ביטול (טעונה אישור הספר), מקבל תזכורות והודעות.

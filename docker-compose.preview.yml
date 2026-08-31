@@ -1,0 +1,10 @@
+# Override file for testing on the new server BEFORE a domain exists — publishes
+# web's port straight to the host (like the old server's raw `http://ip:39000`),
+# skipping nginx/certbot entirely. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d postgres web worker
+# Stop using it (and start nginx/certbot instead) once DOMAIN is set and DNS
+# points here — see docs/DEPLOY.md "שלב 2".
+services:
+  web:
+    ports:
+      - "3000:3000"

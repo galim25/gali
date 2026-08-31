@@ -29,6 +29,9 @@ export function InstallPrompt() {
     if (localStorage.getItem(DISMISSED_KEY) || isStandalone()) return;
 
     if (isIos()) {
+      // Reading a browser-only global (navigator.userAgent) on mount — can't
+      // move to render, this component is SSR'd where `window` doesn't exist.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowIosHint(true);
       return;
     }
