@@ -8,7 +8,7 @@
 # both present out of the box on bookworm-slim — Alpine needs extra
 # openssl/libc6-compat wrangling that isn't worth it for this app's traffic.
 
-FROM node:20-bookworm-slim AS base
+FROM node:22-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
