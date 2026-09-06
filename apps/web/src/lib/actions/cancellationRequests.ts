@@ -6,6 +6,7 @@ import { formatIsraelDate, formatIsraelTime } from "@barberbook/shared";
 import { getSession } from "@/lib/auth/session";
 import { sendCustomerNotification } from "@/lib/notifyCustomer";
 import { notifyWaitlistOfFreedSlot } from "@/lib/actions/waitlist";
+import { notifyAdminsOfCancellationRequest } from "@/lib/notifyAdmin";
 import { getRequiresApproval } from "@/lib/actions/settings";
 import type { BookingResult } from "@/lib/actions/booking";
 
@@ -56,16 +57,21 @@ export async function requestCancellationAction(appointment_id: string): Promise
     return { error: "כבר יש בקשת ביטול פעילה לתור זה" };
   }
 
-  if (existing) {
-    await prisma.cancellationRequest.update({
-      where: { id: existing.id },
-      data: { status: "pending", requested_at: new Date(), reviewed_at: null, reviewed_by_user_id: null },
-    });
-  } else {
-    await prisma.cancellationRequest.create({
-      data: { appointment_id, requested_by_user_id: session.sub, status: "pending" },
-    });
-  }
+  const request = existing
+    ? await prisma.cancellationRequest.update({
+        where: { id: existing.id },
+        data: { status: "pending", requested_at: new Date(), reviewed_at: null, reviewed_by_user_id: null },
+      })
+    : await prisma.cancellationRequest.create({
+        data: { appointment_id, requested_by_user_id: session.sub, status: "pending" },
+      });
+
+  await notifyAdminsOfCancellationRequest({
+    cancellation_request_id: request.id,
+    service_name: appointment.service.name,
+    customer_name: session.full_name,
+    starts_at: appointment.starts_at,
+  });
 
   revalidatePath("/account/appointments");
   return { success: true };

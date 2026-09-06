@@ -5,6 +5,7 @@ import { getAdminNotifications } from "@/lib/actions/adminNotifications";
 import { MarkReadButton } from "./MarkReadButton";
 import { PageHeader } from "@/components/PageHeader";
 import { AdminBrandHero } from "@/components/AdminBrandHero";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 function formatDateTime(d: Date) {
   return d.toLocaleString("he-IL", {
@@ -30,6 +31,8 @@ export default async function AdminNotificationsPage() {
         </Link>
         <MarkReadButton hasUnread={hasUnread} />
       </div>
+
+      <PushNotificationToggle />
 
       <div className="flex flex-col gap-2">
         {notifications.length === 0 && <p className="text-slate-muted">אין התראות.</p>}

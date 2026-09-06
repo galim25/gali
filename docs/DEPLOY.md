@@ -172,3 +172,29 @@ docker compose exec postgres pg_dump -U <POSTGRES_USER> <POSTGRES_DB> | gzip > b
 - **עדכון קוד:** `git pull && docker compose build && docker compose up -d`
 - **לוגים:** `docker compose logs -f web` / `worker` / `nginx`
 - **מיגרציה חדשה של סכימה:** `docker compose exec web pnpm db:migrate`
+
+### הפעלת התראות Push למנהל (נוסף 2026-09-06)
+
+פיצ'ר חדש: התראת מכשיר אמיתית (לא רק badge בתוך האפליקציה) לספר על כל תור
+חדש/בקשת תור/בקשת ביטול — ראו את הקטע המתאים ב-`.env.example`. כדי להפעיל על
+שרת שכבר רץ:
+
+```bash
+git pull
+docker compose exec web pnpm exec web-push generate-vapid-keys
+```
+
+מעתיקים את "Public Key"/"Private Key" מהפלט אל `.env` (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
+`VAPID_PRIVATE_KEY`, ראו `.env.example` להסבר המלא + `VAPID_SUBJECT`), ואז:
+
+```bash
+docker compose exec web pnpm db:migrate   # מוסיף את טבלת push_subscriptions
+docker compose build web                  # NEXT_PUBLIC_VAPID_PUBLIC_KEY נטמע בזמן build
+docker compose up -d web
+```
+
+לאחר מכן, בכניסה כמנהל אל `/admin/notifications`, יופיע כפתור "הפעלת
+התראות" — לחיצה עליו (בכל מכשיר שרוצים לקבל בו התראות, בנפרד) מבקשת הרשאה
+מהדפדפן. **חשוב לאייפון:** Apple מאפשרת Web Push רק לאפליקציה שהותקנה
+בפועל למסך הבית (שיתוף ← הוסף למסך הבית) — בלי זה הכפתור באייפון יסביר
+זאת במקום להפעיל. באנדרואיד/מחשב זה עובד גם בלי התקנה.

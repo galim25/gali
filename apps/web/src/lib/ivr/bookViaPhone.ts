@@ -1,5 +1,5 @@
 import { bookAppointmentCore, type BookedAppointment } from "@/lib/actions/bookingCore";
-import { notifyAdminsOfNewBooking } from "@/lib/notifyAdmin";
+import { notifyAdminsOfNewBooking, notifyAdminsOfBookingRequest } from "@/lib/notifyAdmin";
 import { getRequiresApproval } from "@/lib/actions/settings";
 
 export type PhoneBookingResult =
@@ -23,7 +23,9 @@ export async function bookViaPhone(
   const requiresApproval = await getRequiresApproval();
   try {
     const booked = await bookAppointmentCore(input, actor, requiresApproval);
-    if (!requiresApproval) {
+    if (requiresApproval) {
+      await notifyAdminsOfBookingRequest(booked);
+    } else {
       await notifyAdminsOfNewBooking(booked);
     }
     return { outcome: "booked", pendingApproval: requiresApproval, booked };

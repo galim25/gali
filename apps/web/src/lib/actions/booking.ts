@@ -9,7 +9,7 @@ import {
 import { getSession } from "@/lib/auth/session";
 import { findAvailableSlots, isSlotAvailable, type Interval } from "@/lib/availability";
 import { runSerializable } from "@/lib/serializableTransaction";
-import { notifyAdminsOfNewBooking } from "@/lib/notifyAdmin";
+import { notifyAdminsOfNewBooking, notifyAdminsOfBookingRequest } from "@/lib/notifyAdmin";
 import { getRequiresApproval } from "@/lib/actions/settings";
 import { bookAppointmentCore } from "@/lib/actions/bookingCore";
 
@@ -152,6 +152,7 @@ export async function bookAppointmentAction(input: CreateAppointmentInput): Prom
     );
 
     if (requiresApproval) {
+      await notifyAdminsOfBookingRequest(booked);
       return { success: true, pendingApproval: true };
     }
     await notifyAdminsOfNewBooking(booked);

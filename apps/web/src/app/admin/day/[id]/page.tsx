@@ -98,16 +98,21 @@ export default async function AdminDayPage({ params }: { params: Promise<{ id: s
               );
             }
             return (
-              <li key={s.id} className="border-barber-teal bg-white rounded-xl border p-3 text-sm">
-                <p className="text-ink font-bold">
-                  {formatHHMM(s.starts_at)}–{formatHHMM(s.ends_at)} · {s.service_name}
-                </p>
-                <p className="text-slate-muted">
-                  {s.customer_name}
-                  {s.attendee_type === "child" && ` (עבור: ${s.attendee_name})`}
-                  {!s.has_account && " · תור ידני"}
-                </p>
-                <div className="mt-2 flex items-center gap-3">
+              <li
+                key={s.id}
+                className="border-barber-teal/20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b py-3 text-sm last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-ink truncate font-bold">
+                    {formatHHMM(s.starts_at)} · {s.customer_name}
+                  </p>
+                  <p className="text-slate-muted truncate text-xs">
+                    {s.service_name}
+                    {s.attendee_type === "child" && ` (עבור: ${s.attendee_name})`}
+                    {!s.has_account && " · תור ידני"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
                   <MoveAppointmentButton
                     appointmentId={s.id}
                     workDayId={workDay.id}

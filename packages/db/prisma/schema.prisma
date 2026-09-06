@@ -45,6 +45,8 @@ enum NotificationType {
   appointment_booked
   waitlist_slot_available
   booking_decision
+  booking_request_pending
+  cancellation_request_pending
 }
 
 enum NotificationStatus {
@@ -71,6 +73,7 @@ model User {
   announcements_published      Announcement[]
   blocked_phone_numbers        BlockedPhoneNumber[]
   waitlist_entry               WaitlistEntry?
+  push_subscriptions           PushSubscription[]
 
   @@map("users")
 }
@@ -274,6 +277,27 @@ model Notification {
   @@index([user_id])
   @@index([status, scheduled_at])
   @@map("notifications")
+}
+
+/**
+ * One row per browser/device that opted into real Web Push notifications
+ * (Notification/PushManager APIs) — distinct from Notification above, which
+ * is only the in-app badge/feed. An administrator can have several rows
+ * (e.g. phone + desktop). endpoint is unique per browser install, so
+ * re-subscribing the same device upserts instead of duplicating.
+ */
+model PushSubscription {
+  id         String   @id @default(cuid())
+  user_id    String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("push_subscriptions")
 }
 
 /**
