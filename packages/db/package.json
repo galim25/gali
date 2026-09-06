@@ -17,7 +17,7 @@
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "@barberbook/shared": "workspace:*",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^3.0.3"
   },
   "devDependencies": {
     "prisma": "^6.2.1",
