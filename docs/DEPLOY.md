@@ -176,21 +176,24 @@ docker compose exec postgres pg_dump -U <POSTGRES_USER> <POSTGRES_DB> | gzip > b
 ### הפעלת התראות Push למנהל (נוסף 2026-09-06)
 
 פיצ'ר חדש: התראת מכשיר אמיתית (לא רק badge בתוך האפליקציה) לספר על כל תור
-חדש/בקשת תור/בקשת ביטול — ראו את הקטע המתאים ב-`.env.example`. כדי להפעיל על
-שרת שכבר רץ:
+חדש/בקשת תור/בקשת ביטול — ראו את הקטע המתאים ב-`.env.example`. **חשוב לגבי
+הסדר:** `web-push` (הכלי ליצירת המפתחות) ו-`NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+(שנטמע בזמן build) שניהם לא קיימים עדיין בקונטיינר הישן — צריך לבנות מחדש
+*לפני* שאפשר בכלל ליצור מפתחות בתוכו. הכי פשוט: יוצרים את המפתחות מחוץ
+לדוקר לגמרי (בכל מחשב עם Node, כולל המחשב האישי) עם:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+מעתיקים את "Public Key"/"Private Key" מהפלט אל `.env` בשרת (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
+`VAPID_PRIVATE_KEY`, ראו `.env.example` להסבר המלא + `VAPID_SUBJECT`) **לפני** ה-build, ואז:
 
 ```bash
 git pull
-docker compose exec web pnpm exec web-push generate-vapid-keys
-```
-
-מעתיקים את "Public Key"/"Private Key" מהפלט אל `.env` (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
-`VAPID_PRIVATE_KEY`, ראו `.env.example` להסבר המלא + `VAPID_SUBJECT`), ואז:
-
-```bash
-docker compose exec web pnpm db:migrate   # מוסיף את טבלת push_subscriptions
-docker compose build web                  # NEXT_PUBLIC_VAPID_PUBLIC_KEY נטמע בזמן build
+docker compose build web
 docker compose up -d web
+docker compose exec web pnpm db:migrate   # מוסיף את טבלת push_subscriptions
 ```
 
 לאחר מכן, בכניסה כמנהל אל `/admin/notifications`, יופיע כפתור "הפעלת

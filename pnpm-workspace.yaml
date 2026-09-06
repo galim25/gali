@@ -21,6 +21,14 @@ overrides:
   # !!omap resolution, fix from 3.x not backported to 4.x. Fixed in 4.3.1.
   # Transitive via eslint's @eslint/eslintrc.
   js-yaml: "^4.3.1"
+  # Unbounded memory growth (no cache eviction) + a prototype-write crash via
+  # untrusted browserslist-stats.json. Fixed in 4.28.7. Transitive via
+  # eslint-config-next/@babel and next/@serwist's styled-jsx — build-time only.
+  browserslist: "^4.28.9"
+  # Stack exhaustion merging recursive object graphs. Fixed in 8.0.0.
+  # Transitive via prisma/@prisma/config's own config-file loader — dev-time
+  # only, not something the running app calls into.
+  deepmerge-ts: "^8.0.2"
 
 allowBuilds:
   "@prisma/client": true

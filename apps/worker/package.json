@@ -13,8 +13,8 @@
     "node-cron": "^4.6.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "tsx": "^4.19.2",
+    "@types/node": "^26",
+    "tsx": "^4.23.9",
     "typescript": "^5.7.2"
   }
 }
