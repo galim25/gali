@@ -30,7 +30,7 @@ importers:
         version: link:../../packages/shared
       '@serwist/next':
         specifier: ^9.5.12
-        version: 9.5.12(next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
+        version: 9.5.12(next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
@@ -39,13 +39,13 @@ importers:
         version: 5.10.0
       next:
         specifier: 16.2.12
-        version: 16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
       react:
         specifier: 19.2.4
         version: 19.2.4
       react-dom:
-        specifier: 19.2.4
-        version: 19.2.4(react@19.2.4)
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.4)
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -70,7 +70,7 @@ importers:
         version: 19.2.17
       '@types/react-dom':
         specifier: ^19
-        version: 19.2.3(@types/react@19.2.17)
+        version: 19.2.5(@types/react@19.2.17)
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
@@ -905,8 +905,8 @@ packages:
   '@types/node@20.19.43':
     resolution: {integrity: sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA==}
 
-  '@types/react-dom@19.2.3':
-    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
+  '@types/react-dom@19.2.5':
+    resolution: {integrity: sha512-fMPwH9v7r/pp43yUd2/Mbiex5KouJwwR3dzHkhLREUC6764VyDsqxhAxv6OFEYR1RhjOyD1naqba8ECDBe7ZQg==}
     peerDependencies:
       '@types/react': ^19.2.0
 
@@ -2255,10 +2255,10 @@ packages:
   rc9@2.1.2:
     resolution: {integrity: sha512-btXCnMmRIBINM2LDZoEmOogIZU7Qe7zn4BpomSKZ/ykbLObuBdvG+mFq11DL6fjH1DRwHhrlgtYWG96bJiC7Cg==}
 
-  react-dom@19.2.4:
-    resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
+  react-dom@19.2.8:
+    resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
-      react: ^19.2.4
+      react: ^19.2.8
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -3092,7 +3092,7 @@ snapshots:
     transitivePeerDependencies:
       - browserslist
 
-  '@serwist/next@9.5.12(next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)':
+  '@serwist/next@9.5.12(next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@5.9.3)':
     dependencies:
       '@serwist/build': 9.5.12(browserslist@4.28.6)(typescript@5.9.3)
       '@serwist/utils': 9.5.12(browserslist@4.28.6)
@@ -3101,7 +3101,7 @@ snapshots:
       browserslist: 4.28.6
       glob: 13.0.6
       kolorist: 1.8.0
-      next: 16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      next: 16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.4))(react@19.2.4)
       react: 19.2.4
       semver: 7.8.5
       serwist: 9.5.12(browserslist@4.28.6)(typescript@5.9.3)
@@ -3227,7 +3227,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/react-dom@19.2.3(@types/react@19.2.17)':
+  '@types/react-dom@19.2.5(@types/react@19.2.17)':
     dependencies:
       '@types/react': 19.2.17
 
@@ -4544,7 +4544,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  next@16.2.12(@babel/core@7.29.7(supports-color@7.2.0))(@playwright/test@1.61.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.4))(react@19.2.4):
     dependencies:
       '@next/env': 16.2.12
       '@swc/helpers': 0.5.15
@@ -4552,7 +4552,7 @@ snapshots:
       caniuse-lite: 1.0.30001806
       postcss: 8.5.26
       react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
+      react-dom: 19.2.8(react@19.2.4)
       styled-jsx: 5.1.6(@babel/core@7.29.7(supports-color@7.2.0))(react@19.2.4)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.12
@@ -4733,7 +4733,7 @@ snapshots:
       defu: 6.1.7
       destr: 2.0.5
 
-  react-dom@19.2.4(react@19.2.4):
+  react-dom@19.2.8(react@19.2.4):
     dependencies:
       react: 19.2.4
       scheduler: 0.27.0
