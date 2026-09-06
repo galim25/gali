@@ -15,7 +15,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1",
+    "@prisma/client": "^7.10.0",
     "@barberbook/shared": "workspace:*",
     "bcryptjs": "^2.4.3"
   },
